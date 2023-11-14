@@ -1,0 +1,7 @@
+# Visual Studio Code project settings
+.vscode/
+
+# Project build directory
+build/
+
+*.o

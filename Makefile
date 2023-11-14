@@ -4,19 +4,22 @@
 CC=gcc
 CFLAGS=
 
+#
+PROJECT_NAME:=nomadcap
+BUILD_DIR:=build/
+
 # Uncomment the following line to include DEBUG code
 # CFLAGS=-DEBUG
 LDFLAGS=-lpcap
-DEPS=nomadcap.h
-OBJ=nomadcap.o
+DEPS=$(PROJECT_NAME).h
+OBJ=$(PROJECT_NAME).o
 
-%.o: %.c
+$(BUILD_DIR)%.o: %.c
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-nomadcap: $(OBJ)
+$(BUILD_DIR)$(PROJECT_NAME): $(BUILD_DIR)$(OBJ)
 	gcc -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
-clean:
-	rm -f *.o
-	rm nomadcap
-
+clean:	
+	rm -f $(BUILD_DIR)*.o
+	rm $(BUILD_DIR)$(PROJECT_NAME)
