@@ -7,14 +7,13 @@
 
 /* PCAP stuff */
 /* Ethernet ARP broadcast requests */
-#define NOMADCAP_FILTER "arp && broadcast" 
-#define NOMADCAP_SNAPLEN 34
+#define NOMADCAP_FILTER "arp" 
+#define NOMADCAP_SNAPLEN 64
 #define NOMADCAP_TIMEOUT 500
-#define NOMADCAP_PROMISC 1
+#define NOMADCAP_PROMISC 1 
 
-#define NOMADCAP_TABLE_SIZE 1009
-#define NOMADCAP_THRESHOLD 1
-#define NOMADCAP_OPTS "t:i:hvV"
+#define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff" 
+#define NOMADCAP_OPTS "i:hvV"
 
 #define NOMADCAP_VERSION "0.1"
 
@@ -25,7 +24,6 @@
 typedef struct nomadcap_pack {
     char *device;
     char *filter;
-    int threshold;
     unsigned char flags;
 
     /* PCAP */
@@ -35,13 +33,5 @@ typedef struct nomadcap_pack {
 
     bpf_u_int32 localnet, netmask;
 } nomadcap_pack_t;
-
-/* Hash entry */
-typedef struct nomadcap_entry {
-    /* MAC address */
-    unsigned char mac[6];
-
-    struct nomadcap_entry *next;
-} nomadcap_entry_t;
 
 #endif /* __NOMADCAP_H */
