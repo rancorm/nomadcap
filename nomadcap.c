@@ -89,7 +89,18 @@ nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
 
 void
 nomadcap_usage(char *progname) {
-    fprintf(stderr, "Usage: %s [-i intf] [-hv]\n", progname);
+    printf("%s\n", NOMADCAP_BANNER);
+    printf("Usage: %s [-i intf] [-OApahvV]\n\n", progname);
+
+    printf("\t-i [intf]\t\tInterface\n");
+    printf("\t-O\t\tOUI to organization lookup\n");
+    printf("\t-A\t\tAll networks\n");
+    printf("\t-p\t\tProcess ARP probes\n");
+    printf("\t-a\t\tProcess ARP announcements\n");
+    printf("\t-v\t\tVerbose mode\n");
+    printf("\t-V\t\tVersion\n");
+
+    printf("\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
 
 int
@@ -116,6 +127,15 @@ main(int argc, char *argv[]) {
         switch (c) {
             case 'O':
                 pack.flags |= NOMADCAP_FLAGS_OUI;
+                break;
+            case 'A':
+                pack.flags |= NOMADCAP_FLAGS_ALLNET;
+                break;
+            case 'p':
+                pack.flags |= NOMADCAP_FLAGS_PROBES;
+                break;
+            case 'a':
+                pack.flags |= NOMADCAP_FLAGS_ANNOUC;
                 break;
             case 'i':
                 pack.device = strdup(optarg);
@@ -205,7 +225,7 @@ main(int argc, char *argv[]) {
     printf("Listening on: %s\n", pack.device);
 
     /* Verbose details.. */
-    if (pack.flags & NOMADCAP_FLAGS_VERB) {
+    if (NOMADCAP_FLAG(pack, VERB)) {
         printf("Local network: %s\n", localnet_str);
         printf("Network mask: %s\n", netmask_str);
         printf("Filter: %s\n", NOMADCAP_FILTER);
@@ -236,7 +256,7 @@ main(int argc, char *argv[]) {
 
                 /* Check for ARP probe - ARP sender MAC is all zeros */
                 if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0) {
-                    if (pack.flags & NOMADCAP_FLAGS_VERB) {
+                    if (NOMADCAP_FLAG(pack, VERB)) {
                         fprintf(stderr, "ARP probe, ignoring...\n"); 
                     }
 
@@ -245,7 +265,7 @@ main(int argc, char *argv[]) {
 
                 /* Check for ARP announcement - ARP sender and target IP match */
                 if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0) {
-                    if (pack.flags & NOMADCAP_FLAGS_VERB) {
+                    if (NOMADCAP_FLAG(pack, VERB)) {
                         fprintf(stderr, "ARP announcement, ignoring...\n");
                     }
 
@@ -270,7 +290,7 @@ main(int argc, char *argv[]) {
     }
 
     /* Who doesn't love statistics (verbose only) */
-    if (pack.flags & NOMADCAP_FLAGS_VERB) {
+    if (NOMADCAP_FLAG(pack, VERB)) {
         if (pcap_stats(pack.p, &ps) == -1) {
             NOMADCAP_PRINTF(pack, "pcap_stats: %s\n", pcap_geterr(pack.p));
         } else {

@@ -1,6 +1,10 @@
 #ifndef __NOMADCAP_H
 #define __NOMADCAP_H
 
+/* Author and banner */
+#define NOMADCAP_AUTHOR "Jonathan Cormier <jonathan@cormier.co>"
+#define NOMADCAP_BANNER "Mis-configured network stack tool"
+
 /* IEEE OUI path & files */
 #define NOMADCAP_OUI_PATH "/usr/share/ieee-data/"
 #define NOMADCAP_OUI_FILE NOMADCAP_OUI_PATH ## "oui.csv"
@@ -20,8 +24,9 @@
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff" 
 
 /* Application specific */
-#define NOMADCAP_OPTS "Oi:hvV"
+#define NOMADCAP_OPTS "OApai:hvV"
 
+#define NOMADCAP_FLAG(pack, flag) (pack.flags & NOMADCAP_FLAGS_ ## flag)
 #define NOMADCAP_FLAGS_NONE 0x0
 #define NOMADCAP_FLAGS_VERB 0x1
 #define NOMADCAP_FLAGS_ALLNET 0x2
