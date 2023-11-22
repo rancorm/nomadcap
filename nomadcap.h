@@ -12,19 +12,30 @@
 #define NOMADCAP_TIMEOUT 500
 #define NOMADCAP_PROMISC 1 
 
+/* IP address for all zeros */
+#define NOMADCAP_NONE "\x00\x00\x00\x00"
+
+/* MAC addresses for unknown and broadcast frames */
+#define NOMADCAP_UNKNOWN "\x00\x00\x00\x00\x00\x00"
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff" 
-#define NOMADCAP_OPTS "i:hvV"
+
+/* Application specific */
+#define NOMADCAP_OPTS "Oi:hvV"
+
+#define NOMADCAP_FLAGS_NONE 0x0
+#define NOMADCAP_FLAGS_VERB 0x1
+#define NOMADCAP_FLAGS_ALLNET 0x2
+#define NOMADCAP_FLAGS_PROBES 0x4
+#define NOMADCAP_FLAGS_ANNOUC 0x8
+#define NOMADCAP_FLAGS_OUI 0x16
 
 #define NOMADCAP_VERSION "0.1"
-
-#define NOMADCAP_FLAGS_NONE 0
-#define NOMADCAP_FLAGS_VERB 0x1
 
 /* Package */
 typedef struct nomadcap_pack {
     char *device;
     char *filter;
-    unsigned char flags;
+    uint8_t flags;
 
     /* PCAP */
     pcap_t *p;
@@ -33,5 +44,12 @@ typedef struct nomadcap_pack {
 
     bpf_u_int32 localnet, netmask;
 } nomadcap_pack_t;
+
+#define NOMADCAP_PRINTF(pack, format, ...) \
+  do { \
+    if (pack.flags & NOMADCAP_FLAGS_VERB) { \
+        fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__); \
+    } \
+  } while (0)
 
 #endif /* __NOMADCAP_H */

@@ -15,6 +15,7 @@
 /* Ethernet and ARP */
 #include <net/ethernet.h>
 #include <netinet/if_ether.h>
+#include <net/if_arp.h>
 
 /* getopt friends */
 extern char *optarg;
@@ -22,6 +23,7 @@ extern int optind, opterr, optopt;
 
 #include "nomadcap.h"
 
+/* Global termination control */
 int loop = 1;
 
 void
@@ -40,14 +42,17 @@ nomadcap_exit(nomadcap_pack_t *pack, int code) {
 }
 
 int
-nomadcap_interesting(nomadcap_pack_t *pack, uint8_t *pkt) {
+nomadcap_localnet(nomadcap_pack_t *pack, struct ether_arp *arp) {
+    /* Check if ARP is for the local network */
+
+    return 0;
 }
 
 void
 nomadcap_cleanup(int signno) {
     loop = 0;
 
-    printf("Interrupt signal caught...\n");
+    fprintf(stderr, "Interrupt signal caught...\n");
 }
 
 int
@@ -66,18 +71,25 @@ nomadcap_signal(int signo, void (*handler)()) {
 }
 
 void
-nomadcap_print(uint8_t *addr, int size, char sep, int hex) {
+nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
     for (int i = 0; i < size; i++) {
+        /* Output in hex or decimal */
         if (hex) {
             printf("%02x", addr[i]);
         } else {
             printf("%d", addr[i]);
         }
 
-        if (i < size- 1) {
+        /* Output seperator */
+        if (i < size - 1) {
             printf("%c", sep);
         }
     }
+}
+
+void
+nomadcap_usage(char *progname) {
+    fprintf(stderr, "Usage: %s [-i intf] [-hv]\n", progname);
 }
 
 int
@@ -85,10 +97,11 @@ main(int argc, char *argv[]) {
     nomadcap_pack_t pack;
     pcap_if_t *devs;
     struct pcap_stat ps;
-    struct ether_header *eh;
-    struct arphdr *ah;
+    struct ether_header *eth;
+    struct ether_arp *arp;
     char errbuf[PCAP_ERRBUF_SIZE];
-    char localnet_str[INET_ADDRSTRLEN], netmask_str[INET_ADDRSTRLEN];
+    char localnet_str[INET_ADDRSTRLEN];
+    char netmask_str[INET_ADDRSTRLEN];
     uint8_t *pkt;
     int c = -1;
 
@@ -101,6 +114,9 @@ main(int argc, char *argv[]) {
     /* Parse command line argumemnts */
     while ((c = getopt(argc, argv, NOMADCAP_OPTS)) != -1) {
         switch (c) {
+            case 'O':
+                pack.flags |= NOMADCAP_FLAGS_OUI;
+                break;
             case 'i':
                 pack.device = strdup(optarg);
                 break;
@@ -110,8 +126,10 @@ main(int argc, char *argv[]) {
             case 'V':
                 printf("%s\n", NOMADCAP_VERSION);
                 nomadcap_exit(&pack, EXIT_SUCCESS);
+            case 'h':
+                nomadcap_usage(argv[0]);
+                nomadcap_exit(&pack, EXIT_SUCCESS);
             default: /* '?' */
-                fprintf(stderr, "Usage: %s [-i intf] [-hv]\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
     }
@@ -200,39 +218,66 @@ main(int argc, char *argv[]) {
         /* Catch timer expiring with no data in packet buffer */
         if (pkt == NULL) continue;
 
-        eh = (struct ether_header *)pkt;
-        
+        eth = (struct ether_header *)pkt;
+
         /* Cast packet to ARP header */
-        ah = (struct arphdr *)(pkt + sizeof(struct ether_header));
+        arp = (struct ether_arp *)(pkt + sizeof(struct ether_header));
 
         /* Check if ARP header length is valid */
         if (pack.ph.caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
             /* Check for Ethernet broadcasts */
-            if (memcmp(eh->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
-                /* Sender MAC and IP address */
-                uint8_t *s_mac = (u_char *)(pkt + sizeof(struct ether_header) + sizeof(struct arphdr));
-                uint8_t *s_ip = s_mac + ah->ar_hln;
+            if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
+                /* Only looking for ARP requests */
+                if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
+                    NOMADCAP_PRINTF(pack, "Non ARP request, ignoring...\n");
 
-                /* Target MAC and IP address */
-                uint8_t *t_mac = s_ip + ah->ar_pln; 
-                uint8_t *t_ip = t_mac + ah->ar_hln;
+                    continue;
+                }
+
+                /* Check for ARP probe - ARP sender MAC is all zeros */
+                if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0) {
+                    if (pack.flags & NOMADCAP_FLAGS_VERB) {
+                        fprintf(stderr, "ARP probe, ignoring...\n"); 
+                    }
+
+                    continue;
+                }
+
+                /* Check for ARP announcement - ARP sender and target IP match */
+                if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0) {
+                    if (pack.flags & NOMADCAP_FLAGS_VERB) {
+                        fprintf(stderr, "ARP announcement, ignoring...\n");
+                    }
+
+                    continue;
+                }
+
+                /* Check if ARP request is not local */
+                /* Match arp_spa(uint8_t[4]) is on localnet (bpf_u_int32) */
 
                 /* <Sender IP> [<Sender MAC>] is looking for <Target IP> */
-
-                nomadcap_print(s_ip, ah->ar_pln, '.', 0); 
+                nomadcap_aprint(arp->arp_spa, 4, '.', 0); 
 
                 printf(" [");
-                nomadcap_print(s_mac, ah->ar_hln, ':', 1);
+                nomadcap_aprint(arp->arp_sha, ETH_ALEN, ':', 1);
                 printf("] is looking for ");
 
-                nomadcap_print(t_ip, ah->ar_pln, '.', 0);
+                nomadcap_aprint(arp->arp_tpa, 4, '.', 0);
 
                 printf("\n");
             }
         }
     }
 
-    /* Who doesn't love statistics */
+    /* Who doesn't love statistics (verbose only) */
+    if (pack.flags & NOMADCAP_FLAGS_VERB) {
+        if (pcap_stats(pack.p, &ps) == -1) {
+            NOMADCAP_PRINTF(pack, "pcap_stats: %s\n", pcap_geterr(pack.p));
+        } else {
+            fprintf(stderr, "\nPackets received by libpcap:\t%6d\n", ps.ps_recv);
+            fprintf(stderr, "Packets dropped by libpcap:\t%6d\n", ps.ps_drop);
+        }
+    }
 
     nomadcap_exit(&pack, EXIT_SUCCESS);
 }
