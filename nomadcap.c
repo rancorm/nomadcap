@@ -27,6 +27,11 @@ extern int optind, opterr, optopt;
 int loop = 1;
 
 void
+nomadcap_loadoui(char *ouipath) {
+    /* Local IEEE OUI via CSV file (if found) */
+}
+
+void
 nomadcap_exit(nomadcap_pack_t *pack, int code) {
     /* Clean up memory */
     if (pack->device) {
@@ -43,9 +48,11 @@ nomadcap_exit(nomadcap_pack_t *pack, int code) {
 
 int
 nomadcap_localnet(nomadcap_pack_t *pack, struct ether_arp *arp) {
-    /* Check if ARP is for the local network */
+    /* Perform AND operation between IP address and the local netmask */
+    bpf_u_int32 netaddr = *((bpf_u_int32*)arp->arp_spa) & pack->netmask;
 
-    return 0;
+    /* Check if ARP is for the local network */
+    return (netaddr == pack->localnet);
 }
 
 void
@@ -175,6 +182,13 @@ main(int argc, char *argv[]) {
         pcap_freealldevs(devs);
     }
 
+    /* Load IEEE OUI data */
+    if (NOMADCAP_FLAG(pack, OUI)) {
+        fprintf(stderr, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
+
+        nomadcap_loadoui(NOMADCAP_OUI_FILEPATH);
+    }
+
     /* Open capturing device */
     pack.p = pcap_open_live(pack.device,
         NOMADCAP_SNAPLEN,
@@ -256,35 +270,31 @@ main(int argc, char *argv[]) {
 
                 /* Check for ARP probe - ARP sender MAC is all zeros */
                 if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0) {
-                    if (NOMADCAP_FLAG(pack, VERB)) {
-                        fprintf(stderr, "ARP probe, ignoring...\n"); 
-                    }
+                    NOMADCAP_PRINTF(pack, "ARP probe, ignoring...\n");
 
                     continue;
                 }
 
                 /* Check for ARP announcement - ARP sender and target IP match */
                 if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0) {
-                    if (NOMADCAP_FLAG(pack, VERB)) {
-                        fprintf(stderr, "ARP announcement, ignoring...\n");
-                    }
+                    NOMADCAP_PRINTF(pack, "ARP announcement, ignoring...\n");
 
                     continue;
                 }
 
                 /* Check if ARP request is not local */
-                /* Match arp_spa(uint8_t[4]) is on localnet (bpf_u_int32) */
+                if (nomadcap_localnet(&pack, arp) == 0) {
+                    /* <Sender IP> [<Sender MAC>] is looking for <Target IP> */
+                    nomadcap_aprint(arp->arp_spa, 4, '.', 0); 
 
-                /* <Sender IP> [<Sender MAC>] is looking for <Target IP> */
-                nomadcap_aprint(arp->arp_spa, 4, '.', 0); 
+                    printf(" [");
+                    nomadcap_aprint(arp->arp_sha, ETH_ALEN, ':', 1);
+                    printf("] is looking for ");
 
-                printf(" [");
-                nomadcap_aprint(arp->arp_sha, ETH_ALEN, ':', 1);
-                printf("] is looking for ");
+                    nomadcap_aprint(arp->arp_tpa, 4, '.', 0);
 
-                nomadcap_aprint(arp->arp_tpa, 4, '.', 0);
-
-                printf("\n");
+                    printf("\n");
+                }
             }
         }
     }

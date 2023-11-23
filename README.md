@@ -11,7 +11,13 @@ sudo apt update
 sudo apt install build-essential libpcap0.8 libpcap-dev
 ```
 
-Run `make` to compile. Results are in the directory `build/`.
+Clone and run `make` to compile. Results are in the directory `build/`.
+
+```bash
+git clone https://github.com/jcormir/nomadcap.git
+cd nomadcap
+make
+```
 
 ## Usage
 

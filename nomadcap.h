@@ -7,7 +7,8 @@
 
 /* IEEE OUI path & files */
 #define NOMADCAP_OUI_PATH "/usr/share/ieee-data/"
-#define NOMADCAP_OUI_FILE NOMADCAP_OUI_PATH ## "oui.csv"
+#define NOMADCAP_OUI_FILE "oui.csv"
+#define NOMADCAP_OUI_FILEPATH NOMADCAP_OUI_PATH NOMADCAP_OUI_FILE 
 
 /* PCAP stuff */
 /* Ethernet ARP broadcast requests */
@@ -52,7 +53,7 @@ typedef struct nomadcap_pack {
 
 #define NOMADCAP_PRINTF(pack, format, ...) \
   do { \
-    if (pack.flags & NOMADCAP_FLAGS_VERB) { \
+    if (NOMADCAP_FLAG(pack, VERB)) { \
         fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__); \
     } \
   } while (0)
