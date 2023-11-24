@@ -19,14 +19,16 @@
 
 /* getopt friends */
 extern char *optarg;
-extern int optind, opterr, optopt;
 
 #include "nomadcap.h"
 
 /* Global termination control */
 int loop = 1;
 
-void
+/* IEEE OUI data */
+nomadcap_oui_t **ouis = NULL;
+
+int
 nomadcap_loadoui(char *ouipath) {
     /* Local IEEE OUI via CSV file (if found) */
 }
@@ -48,11 +50,19 @@ nomadcap_exit(nomadcap_pack_t *pack, int code) {
 
 int
 nomadcap_localnet(nomadcap_pack_t *pack, struct ether_arp *arp) {
-    /* Perform AND operation between IP address and the local netmask */
-    bpf_u_int32 netaddr = *((bpf_u_int32*)arp->arp_spa) & pack->netmask;
+    bpf_u_int32 netmask_hbo, localnet_hbo;
+    bpf_u_int32 netaddr, netaddr_hbo;
 
-    /* Check if ARP is for the local network */
-    return (netaddr == pack->localnet);
+    /* Convert to host byte order */
+    netmask_hbo = ntohl(pack->netmask);
+    localnet_hbo = ntohl(pack->localnet);
+    
+    /* Perform AND operation between IP address and the local netmask */
+    netaddr_hbo = htonl(*((bpf_u_int32 *)arp->arp_spa));
+    netaddr = netaddr_hbo & netmask_hbo;
+
+    /* Check if ARP was meant for the local network */
+    return (netaddr == localnet_hbo);
 }
 
 void
@@ -96,9 +106,10 @@ nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
 
 void
 nomadcap_usage(char *progname) {
+    /* Banner*/
     printf("%s\n", NOMADCAP_BANNER);
-    printf("Usage: %s [-i intf] [-OApahvV]\n\n", progname);
 
+    printf("Usage: %s [-i intf] [-OApahvV]\n\n", progname);
     printf("\t-i [intf]\t\tInterface\n");
     printf("\t-O\t\tOUI to organization lookup\n");
     printf("\t-A\t\tAll networks\n");
@@ -121,7 +132,7 @@ main(int argc, char *argv[]) {
     char localnet_str[INET_ADDRSTRLEN];
     char netmask_str[INET_ADDRSTRLEN];
     uint8_t *pkt;
-    int c = -1;
+    int c = -1, is_local = -1;
 
     /* Init */
     pack.device = NULL;
@@ -182,9 +193,11 @@ main(int argc, char *argv[]) {
         pcap_freealldevs(devs);
     }
 
+    NOMADCAP_PRINTF(pack, "Flags: 0x%08x\n", pack.flags);
+
     /* Load IEEE OUI data */
     if (NOMADCAP_FLAG(pack, OUI)) {
-        fprintf(stderr, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
+        NOMADCAP_PRINTF(pack, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
 
         nomadcap_loadoui(NOMADCAP_OUI_FILEPATH);
     }
@@ -231,15 +244,15 @@ main(int argc, char *argv[]) {
         nomadcap_exit(&pack, EXIT_FAILURE);
     }
 
-    /* Convert local network and mask to human readable strings */
-    inet_ntop(AF_INET, &pack.localnet, localnet_str, sizeof(localnet_str));
-    inet_ntop(AF_INET, &pack.netmask, netmask_str, sizeof(netmask_str));
-
     /* Current state */    
     printf("Listening on: %s\n", pack.device);
 
     /* Verbose details.. */
     if (NOMADCAP_FLAG(pack, VERB)) {
+        /* Convert local network and mask to human readable strings */
+        inet_ntop(AF_INET, &pack.localnet, localnet_str, sizeof(localnet_str));
+        inet_ntop(AF_INET, &pack.netmask, netmask_str, sizeof(netmask_str));
+
         printf("Local network: %s\n", localnet_str);
         printf("Network mask: %s\n", netmask_str);
         printf("Filter: %s\n", NOMADCAP_FILTER);
@@ -283,7 +296,9 @@ main(int argc, char *argv[]) {
                 }
 
                 /* Check if ARP request is not local */
-                if (nomadcap_localnet(&pack, arp) == 0) {
+                is_local = nomadcap_localnet(&pack, arp);
+
+                if (is_local == 0 || NOMADCAP_FLAG(pack, ALLNET)) {
                     /* <Sender IP> [<Sender MAC>] is looking for <Target IP> */
                     nomadcap_aprint(arp->arp_spa, 4, '.', 0); 
 
@@ -294,6 +309,8 @@ main(int argc, char *argv[]) {
                     nomadcap_aprint(arp->arp_tpa, 4, '.', 0);
 
                     printf("\n");
+                } else {
+                    NOMADCAP_PRINTF(pack, "Local traffic, ignoring...\n");
                 }
             }
         }
