@@ -31,6 +31,8 @@ nomadcap_oui_t **ouis = NULL;
 int
 nomadcap_loadoui(char *ouipath) {
     /* Local IEEE OUI via CSV file (if found) */
+
+    return 0;
 }
 
 void
@@ -119,6 +121,24 @@ nomadcap_usage(char *progname) {
     printf("\t-V\t\tVersion\n");
 
     printf("\nAuthor: %s\n", NOMADCAP_AUTHOR);
+}
+
+void
+nomadcap_output(nomadcap_pack_t *pack, struct ether_arp *arp) {          
+    /* Format: <Sender IP> [<Sender MAC>] is looking for <Target IP> */
+
+    /* Sender IP */
+    nomadcap_aprint(arp->arp_spa, 4, '.', 0); 
+
+    /* Sender MAC */
+    printf(" [");
+    nomadcap_aprint(arp->arp_sha, ETH_ALEN, ':', 1);
+    printf("] is looking for ");
+
+    /* Target IP */
+    nomadcap_aprint(arp->arp_tpa, 4, '.', 0);
+
+    printf("\n");
 }
 
 int
@@ -258,7 +278,7 @@ main(int argc, char *argv[]) {
         printf("Filter: %s\n", NOMADCAP_FILTER);
     }
 
-    /* Initialize hash table and loop */
+    /* Loop */
     while(loop) {
         pkt = (uint8_t *)pcap_next(pack.p, &pack.ph);
 
@@ -299,16 +319,8 @@ main(int argc, char *argv[]) {
                 is_local = nomadcap_localnet(&pack, arp);
 
                 if (is_local == 0 || NOMADCAP_FLAG(pack, ALLNET)) {
-                    /* <Sender IP> [<Sender MAC>] is looking for <Target IP> */
-                    nomadcap_aprint(arp->arp_spa, 4, '.', 0); 
-
-                    printf(" [");
-                    nomadcap_aprint(arp->arp_sha, ETH_ALEN, ':', 1);
-                    printf("] is looking for ");
-
-                    nomadcap_aprint(arp->arp_tpa, 4, '.', 0);
-
-                    printf("\n");
+                    /* Output ARP results */
+                    nomadcap_output(&pack, arp);
                 } else {
                     NOMADCAP_PRINTF(pack, "Local traffic, ignoring...\n");
                 }
