@@ -21,10 +21,24 @@ make
 
 ## Usage
 
-Run `nomadcap` with Root privileges or through `sudo`.
+Run `nomadcap` with root privileges or through `sudo`.
 
 ```bash
 sudo build/nomadcap -v
+Flags: 0x00000003
+Listening on: wlo1
+Local network: 192.168.2.0
+Network mask: 255.255.255.0
+Filter: arp
+10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
+^CInterrupt signal caught...
+10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
+
+Packets received by libpcap:	     5
+Packets dropped by libpcap:	         0
 ```
 
 Output should list devices with network stacks misconfigured that

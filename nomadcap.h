@@ -29,6 +29,7 @@
 #define NOMADCAP_OPTS             "OApai:hvV"
 
 #define NOMADCAP_FLAG(pack, flag) (pack.flags & NOMADCAP_FLAGS_ ## flag)
+#define NOMADCAP_FLAG_NOT(pack, flag) ((pack.flags & NOMADCAP_FLAGS_ ## flag) == 0)
 #define NOMADCAP_FLAGS_NONE       0x0
 #define NOMADCAP_FLAGS_VERB       0x1
 #define NOMADCAP_FLAGS_ALLNET     0x2
@@ -59,7 +60,7 @@ typedef struct nomadcap_oui {
   char *org_address;
 } nomadcap_oui_t;
 
-#define NOMADCAP_PRINTF(pack, format, ...) \
+#define NOMADCAP_STDERR(pack, format, ...) \
   do { \
     if (NOMADCAP_FLAG(pack, VERB)) { \
         fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__); \

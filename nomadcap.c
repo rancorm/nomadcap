@@ -213,11 +213,11 @@ main(int argc, char *argv[]) {
         pcap_freealldevs(devs);
     }
 
-    NOMADCAP_PRINTF(pack, "Flags: 0x%08x\n", pack.flags);
+    NOMADCAP_STDERR(pack, "Flags: 0x%08x\n", pack.flags);
 
     /* Load IEEE OUI data */
     if (NOMADCAP_FLAG(pack, OUI)) {
-        NOMADCAP_PRINTF(pack, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
+        NOMADCAP_STDERR(pack, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
 
         nomadcap_loadoui(NOMADCAP_OUI_FILEPATH);
     }
@@ -296,21 +296,23 @@ main(int argc, char *argv[]) {
             if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
                 /* Only looking for ARP requests */
                 if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
-                    NOMADCAP_PRINTF(pack, "Non ARP request, ignoring...\n");
+                    NOMADCAP_STDERR(pack, "Non ARP request, ignoring...\n");
 
                     continue;
                 }
 
                 /* Check for ARP probe - ARP sender MAC is all zeros */
-                if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0) {
-                    NOMADCAP_PRINTF(pack, "ARP probe, ignoring...\n");
+                if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0 &&
+                    NOMADCAP_FLAG_NOT(pack, PROBES)) {
+                    NOMADCAP_STDERR(pack, "ARP probe, ignoring...\n");
 
                     continue;
                 }
 
                 /* Check for ARP announcement - ARP sender and target IP match */
-                if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0) {
-                    NOMADCAP_PRINTF(pack, "ARP announcement, ignoring...\n");
+                if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
+                    NOMADCAP_FLAG_NOT(pack, ANNOUC)) {
+                    NOMADCAP_STDERR(pack, "ARP announcement, ignoring...\n");
 
                     continue;
                 }
@@ -322,7 +324,7 @@ main(int argc, char *argv[]) {
                     /* Output ARP results */
                     nomadcap_output(&pack, arp);
                 } else {
-                    NOMADCAP_PRINTF(pack, "Local traffic, ignoring...\n");
+                    NOMADCAP_STDERR(pack, "Local traffic, ignoring...\n");
                 }
             }
         }
@@ -331,10 +333,10 @@ main(int argc, char *argv[]) {
     /* Who doesn't love statistics (verbose only) */
     if (NOMADCAP_FLAG(pack, VERB)) {
         if (pcap_stats(pack.p, &ps) == -1) {
-            NOMADCAP_PRINTF(pack, "pcap_stats: %s\n", pcap_geterr(pack.p));
+            NOMADCAP_STDERR(pack, "pcap_stats: %s\n", pcap_geterr(pack.p));
         } else {
-            fprintf(stderr, "\nPackets received by libpcap:\t%6d\n", ps.ps_recv);
-            fprintf(stderr, "Packets dropped by libpcap:\t%6d\n", ps.ps_drop);
+            fprintf(stderr, "\nPackets received: %d\n", ps.ps_recv);
+            fprintf(stderr, "Packets dropped: %d\n", ps.ps_drop);
         }
     }
 
