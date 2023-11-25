@@ -42,6 +42,6 @@ Filter: arp
 ^CInterrupt signal caught...
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 
-Packets received by libpcap:	     5
-Packets dropped by libpcap:	         0
+Packets received: 5
+Packets dropped:	0
 ```
