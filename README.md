@@ -25,6 +25,11 @@ Run `nomadcap` with root privileges or through `sudo`.
 
 ```bash
 sudo build/nomadcap -v
+```
+
+Output:
+
+```bash
 Flags: 0x00000003
 Listening on: wlo1
 Local network: 192.168.2.0
@@ -40,6 +45,3 @@ Filter: arp
 Packets received by libpcap:	     5
 Packets dropped by libpcap:	         0
 ```
-
-Output should list devices with network stacks misconfigured that
-are sending ARP requests for other networks.
