@@ -43,5 +43,5 @@ Filter: arp
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 
 Packets received: 5
-Packets dropped:	0
+Packets dropped: 0
 ```

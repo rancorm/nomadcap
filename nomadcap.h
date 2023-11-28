@@ -28,8 +28,8 @@
 /* Application specific */
 #define NOMADCAP_OPTS             "OApai:hvV"
 
-#define NOMADCAP_FLAG(pack, flag) (pack.flags & NOMADCAP_FLAGS_ ## flag)
-#define NOMADCAP_FLAG_NOT(pack, flag) ((pack.flags & NOMADCAP_FLAGS_ ## flag) == 0)
+#define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_ ## flag)
+#define NOMADCAP_FLAG_NOT(pack, flag) ((pack->flags & NOMADCAP_FLAGS_ ## flag) == 0)
 #define NOMADCAP_FLAGS_NONE       0x0
 #define NOMADCAP_FLAGS_VERB       0x1
 #define NOMADCAP_FLAGS_ALLNET     0x2
