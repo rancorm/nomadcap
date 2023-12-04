@@ -17,6 +17,10 @@
 #include <netinet/if_ether.h>
 #include <net/if_arp.h>
 
+#ifdef USE_LIBCSV
+#include <csv.h>
+#endif /* USE_LIBCSV */
+
 /* getopt friends */
 extern char *optarg;
 
@@ -25,8 +29,6 @@ extern char *optarg;
 /* Global termination control */
 int loop = 1;
 
-/* IEEE OUI data */
-nomadcap_oui_t **ouis = NULL;
 
 int
 nomadcap_loadoui(char *ouipath) {
@@ -52,6 +54,7 @@ nomadcap_exit(nomadcap_pack_t *np, int code) {
         free(np);
     }
 
+    /* Exit with parameter supplied code */
     exit(code);
 }
 
@@ -63,7 +66,7 @@ nomadcap_localnet(nomadcap_pack_t *np, struct ether_arp *arp) {
     /* Convert to host byte order */
     netmask_hbo = ntohl(np->netmask);
     localnet_hbo = ntohl(np->localnet);
-    
+
     /* Perform AND operation between IP address and the local netmask */
     netaddr_hbo = htonl(*((bpf_u_int32 *)arp->arp_spa));
     netaddr = netaddr_hbo & netmask_hbo;
@@ -117,7 +120,7 @@ nomadcap_usage(char *progname) {
     printf("%s\n", NOMADCAP_BANNER);
 
     printf("Usage: %s [-i intf] [-OApahvV]\n\n", progname);
-    printf("\t-i [intf]\t\tInterface\n");
+    printf("\t-i intf\t\tCapture interface\n");
     printf("\t-O\t\tOUI to organization lookup\n");
     printf("\t-A\t\tAll networks\n");
     printf("\t-p\t\tProcess ARP probes\n");
@@ -129,7 +132,7 @@ nomadcap_usage(char *progname) {
 }
 
 void
-nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {          
+nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
     /* Format: <Sender IP> [<Sender MAC>] is looking for <Target IP> */
 
     /* Sender IP */
@@ -158,7 +161,8 @@ nomadcap_init() {
         np->p = NULL;
         np->filter = NOMADCAP_FILTER;
         np->flags = NOMADCAP_FLAGS_NONE;
-          
+        np->ouis = NULL;
+
         return np;
     }
 
@@ -187,7 +191,6 @@ main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    
     /* Parse command line argumemnts */
     while ((c = getopt(argc, argv, NOMADCAP_OPTS)) != -1) {
         switch (c) {
@@ -222,6 +225,8 @@ main(int argc, char *argv[]) {
 
     /* Leave it to libpcap to find an interface */
     if (np->device == NULL) {
+	NOMADCAP_STDOUT(np, "Looking for interface...\n");
+
         /* Find all available network interfaces */
         if (pcap_findalldevs(&devs, errbuf) == -1) {
             fprintf(stderr, "pcap_findalldevs: %s\n", errbuf);
@@ -237,20 +242,21 @@ main(int argc, char *argv[]) {
         /* Copy device name of first found device */
         np->device = strdup(devs[0].name);
 
+	NOMADCAP_STDOUT(np, "Found interface: %s\n", np->device);
+
         /* Free the list of interfaces */
         pcap_freealldevs(devs);
     }
 
-    NOMADCAP_STDERR(np, "Flags: 0x%08x\n", np->flags);
+    NOMADCAP_STDOUT(np, "Flags: 0x%08x\n", np->flags);
 
     /* Load IEEE OUI data */
     if (NOMADCAP_FLAG(np, OUI)) {
-        NOMADCAP_STDERR(np, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
+        NOMADCAP_STDOUT(np, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
 
         nomadcap_loadoui(NOMADCAP_OUI_FILEPATH);
     }
 
-    /* Open capturing device */
     np->p = pcap_open_live(np->device,
         NOMADCAP_SNAPLEN,
         NOMADCAP_PROMISC,
@@ -292,7 +298,7 @@ main(int argc, char *argv[]) {
         nomadcap_exit(np, EXIT_FAILURE);
     }
 
-    /* Current state */    
+    /* Current state */
     printf("Listening on: %s\n", np->device);
 
     /* Verbose details.. */
@@ -324,7 +330,7 @@ main(int argc, char *argv[]) {
             if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
                 /* Only looking for ARP requests */
                 if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
-                    NOMADCAP_STDERR(np, "Non ARP request, ignoring...\n");
+                    NOMADCAP_STDOUT(np, "Non ARP request, ignoring...\n");
 
                     continue;
                 }
@@ -332,7 +338,7 @@ main(int argc, char *argv[]) {
                 /* Check for ARP probe - ARP sender MAC is all zeros */
                 if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0 &&
                     NOMADCAP_FLAG_NOT(np, PROBES)) {
-                    NOMADCAP_STDERR(np, "ARP probe, ignoring...\n");
+                    NOMADCAP_STDOUT(np, "ARP probe, ignoring...\n");
 
                     continue;
                 }
@@ -340,7 +346,7 @@ main(int argc, char *argv[]) {
                 /* Check for ARP announcement - ARP sender and target IP match */
                 if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
                     NOMADCAP_FLAG_NOT(np, ANNOUC)) {
-                    NOMADCAP_STDERR(np, "ARP announcement, ignoring...\n");
+                    NOMADCAP_STDOUT(np, "ARP announcement, ignoring...\n");
 
                     continue;
                 }
@@ -352,7 +358,7 @@ main(int argc, char *argv[]) {
                     /* Output ARP results */
                     nomadcap_output(np, arp);
                 } else {
-                    NOMADCAP_STDERR(np, "Local traffic, ignoring...\n");
+                    NOMADCAP_STDOUT(np, "Local traffic, ignoring...\n");
                 }
             }
         }
