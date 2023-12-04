@@ -40,15 +40,12 @@ nomadcap_loadoui(char *ouipath) {
 void
 nomadcap_exit(nomadcap_pack_t *np, int code) {
     if (np) {
-        if (np->device) {
-            /* Free string */
-            free(np->device);
-        }
+        /* Free strings */
+        if (np->device) free(np->device);
+	if (np->filename) free(np->filename);
 
-        if (np->p) {
-            /* Close capture device */
-            pcap_close(np->p);
-        }
+        /* Close capture device */
+        if (np->p) pcap_close(np->p);
 
         /* Free structure */
         free(np);
@@ -76,10 +73,17 @@ nomadcap_localnet(nomadcap_pack_t *np, struct ether_arp *arp) {
 }
 
 void
-nomadcap_cleanup(int signno) {
+nomadcap_cleanup(int signo) {
     loop = 0;
 
     fprintf(stderr, "Interrupt signal caught...\n");
+}
+
+void
+nomadcap_alarm(int signo) {
+    loop = 0;
+
+    fprintf(stderr, "Duration alarm caught...\n");
 }
 
 int
@@ -115,18 +119,27 @@ nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
 }
 
 void
-nomadcap_usage(char *progname) {
+nomadcap_usage(nomadcap_pack_t *np) {
     /* Banner*/
-    printf("%s\n", NOMADCAP_BANNER);
+    printf("%s v%s [%s]\n\n",
+	np->pname,
+	NOMADCAP_VERSION,
+	NOMADCAP_BANNER);
 
-    printf("Usage: %s [-i intf] [-OApahvV]\n\n", progname);
-    printf("\t-i intf\t\tCapture interface\n");
-    printf("\t-O\t\tOUI to organization lookup\n");
-    printf("\t-A\t\tAll networks\n");
-    printf("\t-p\t\tProcess ARP probes\n");
-    printf("\t-a\t\tProcess ARP announcements\n");
-    printf("\t-v\t\tVerbose mode\n");
-    printf("\t-V\t\tVersion\n");
+    printf("Usage: %s [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV]\n\n", np->pname);
+    printf("\t-i <intf>\t\tCapture on interface <intf>\n");
+    printf("\t-f <filename.pcap>\tOffline capture using <filename.pcap>\n");
+    printf("\t-d <seconds>\tDuration of capture (seconds)\n");
+
+#ifdef USE_LIBCSV
+    printf("\t-O\t\t\tMAC OUI to organization\n");
+#endif /* USE_LIBCSV */
+
+    printf("\t-A\t\t\tAll networks (includes local traffic)\n");
+    printf("\t-p\t\t\tProcess ARP probes\n");
+    printf("\t-a\t\t\tProcess ARP announcements\n");
+    printf("\t-v\t\t\tVerbose mode\n");
+    printf("\t-V\t\t\tVersion\n");
 
     printf("\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
@@ -150,7 +163,7 @@ nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 }
 
 nomadcap_pack_t *
-nomadcap_init() {
+nomadcap_init(char *pname) {
     nomadcap_pack_t *np;
 
     np = (nomadcap_pack_t *)malloc(sizeof(nomadcap_pack_t));
@@ -162,6 +175,12 @@ nomadcap_init() {
         np->filter = NOMADCAP_FILTER;
         np->flags = NOMADCAP_FLAGS_NONE;
         np->ouis = NULL;
+	np->filename = NULL;
+
+	np->duration = 0;
+
+	/* Save program name */
+	np->pname = pname;
 
         return np;
     }
@@ -183,7 +202,7 @@ main(int argc, char *argv[]) {
     int c = -1, is_local = -1;
 
     /* Init */
-    np = nomadcap_init();
+    np = nomadcap_init(argv[0]);
 
     /* Bail if there are memory troubles */
     if (np == NULL) {
@@ -204,10 +223,18 @@ main(int argc, char *argv[]) {
                 np->flags |= NOMADCAP_FLAGS_PROBES;
                 break;
             case 'a':
-                np->flags |= NOMADCAP_FLAGS_ANNOUC;
+                np->flags |= NOMADCAP_FLAGS_ANNOUNCE;
                 break;
             case 'i':
                 np->device = strdup(optarg);
+                break;
+            case 'f':
+                np->flags |= NOMADCAP_FLAGS_FILE;
+                np->filename = strdup(optarg);
+                break;
+            case 'd':
+		/* User supplied duration or default */
+                np->duration = optarg ? atoi(optarg) : NOMADCAP_DURATION;
                 break;
             case 'v':
                 np->flags |= NOMADCAP_FLAGS_VERB;
@@ -216,11 +243,24 @@ main(int argc, char *argv[]) {
                 printf("%s\n", NOMADCAP_VERSION);
                 nomadcap_exit(np, EXIT_SUCCESS);
             case 'h':
-                nomadcap_usage(argv[0]);
+                nomadcap_usage(np);
                 nomadcap_exit(np, EXIT_SUCCESS);
             default: /* '?' */
                 exit(EXIT_FAILURE);
         }
+    }
+
+    /* Offline file capture */
+    if (NOMADCAP_FLAG(np, FILE)) {
+       NOMADCAP_STDOUT(np, "Loading capture file: %s\n",  np->filename);
+
+       np->p = pcap_open_offline(np->filename, errbuf);
+
+       /* Catch PCAP open errors */
+       if (np->p == NULL) {
+           NOMADCAP_STDERR(np, "pcap_open_offline: %s\n", errbuf);
+           nomadcap_exit(np, EXIT_FAILURE);
+      }
     }
 
     /* Leave it to libpcap to find an interface */
@@ -229,13 +269,13 @@ main(int argc, char *argv[]) {
 
         /* Find all available network interfaces */
         if (pcap_findalldevs(&devs, errbuf) == -1) {
-            fprintf(stderr, "pcap_findalldevs: %s\n", errbuf);
+            NOMADCAP_STDERR(np, "pcap_findalldevs: %s\n", errbuf);
             nomadcap_exit(np, EXIT_FAILURE);
         }
 
         /* No interfaces, print an error message and exit */
         if (devs == NULL) {
-            fprintf(stderr, "No interfaces found\n");
+            NOMADCAP_STDERR(np, "No interfaces found\n");
             nomadcap_exit(np, EXIT_FAILURE);
         }
 
@@ -251,51 +291,70 @@ main(int argc, char *argv[]) {
     NOMADCAP_STDOUT(np, "Flags: 0x%08x\n", np->flags);
 
     /* Load IEEE OUI data */
+#ifdef USE_LIBCSV
     if (NOMADCAP_FLAG(np, OUI)) {
         NOMADCAP_STDOUT(np, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
 
         nomadcap_loadoui(NOMADCAP_OUI_FILEPATH);
     }
+#endif /* USE_LIBCSV */
 
-    np->p = pcap_open_live(np->device,
-        NOMADCAP_SNAPLEN,
-        NOMADCAP_PROMISC,
-        NOMADCAP_TIMEOUT,
-        errbuf);
+    /* No file name from user, live capture */
+    if (NOMADCAP_FLAG_NOT(np, FILE)) {
+       np->p = pcap_open_live(np->device,
+		NOMADCAP_SNAPLEN,
+		NOMADCAP_PROMISC,
+		NOMADCAP_TIMEOUT,
+		errbuf);
 
-    if (np->p == NULL) {
-        fprintf(stderr, "pcap_open_live: %s\n", errbuf);
-        nomadcap_exit(np, EXIT_FAILURE);
+       /* Catch PCAP open errors */
+       if (np->p == NULL) {
+           NOMADCAP_STDERR(np, "pcap_open_live: %s\n", errbuf);
+           nomadcap_exit(np, EXIT_FAILURE);
+      }
     }
 
     /* Look up local network and mask */
     if (pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1) {
-        fprintf(stderr, "pcap_lookupnet: %s\n", errbuf);
+        NOMADCAP_STDERR(np, "pcap_lookupnet: %s\n", errbuf);
         nomadcap_exit(np, EXIT_FAILURE);
     }
 
     /* Comile filter into BPF program */
     if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1) {
-        fprintf(stderr, "pcap_compile: %s\n", pcap_geterr(np->p));
+        NOMADCAP_STDERR(np, "pcap_compile: %s\n", pcap_geterr(np->p));
         nomadcap_exit(np, EXIT_FAILURE);
     }
 
     /* Set program as filter */
     if (pcap_setfilter(np->p, &np->code) == -1) {
-        fprintf(stderr, "pcap_setfilter: %s\n", errbuf);
+        NOMADCAP_STDERR(np, "pcap_setfilter: %s\n", errbuf);
         nomadcap_exit(np, EXIT_FAILURE);
     }
 
     /* Check datalink */
     if (pcap_datalink(np->p) != DLT_EN10MB) {
-        fprintf(stderr, "pcap_datalink: Ethernet only, sorry.");
+        NOMADCAP_STDERR(np, "pcap_datalink: Ethernet only, sorry.");
         nomadcap_exit(np, EXIT_FAILURE);
     }
 
-    /* Catch signals */
+    /* Interrupt signal */
     if (nomadcap_signal(SIGINT, nomadcap_cleanup) == -1) {
-        fprintf(stderr, "Can't catch signal\n");
+        NOMADCAP_STDERR(np, "Can't catch SIGINT signal\n");
         nomadcap_exit(np, EXIT_FAILURE);
+    }
+
+    /* Duration alarm */
+    if (np->duration > 0) {
+        NOMADCAP_STDOUT(np, "Capturing for %d seconds\n", np->duration);
+
+	if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1) {
+	    NOMADCAP_STDERR(np, "Can't catch SIGALRM signal\n");
+            nomadcap_exit(np, EXIT_FAILURE);
+	}
+
+	/* Set alarm */
+	alarm(np->duration);
     }
 
     /* Current state */
@@ -345,7 +404,7 @@ main(int argc, char *argv[]) {
 
                 /* Check for ARP announcement - ARP sender and target IP match */
                 if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
-                    NOMADCAP_FLAG_NOT(np, ANNOUC)) {
+                    NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
                     NOMADCAP_STDOUT(np, "ARP announcement, ignoring...\n");
 
                     continue;
@@ -369,8 +428,8 @@ main(int argc, char *argv[]) {
         if (pcap_stats(np->p, &ps) == -1) {
             NOMADCAP_STDERR(np, "pcap_stats: %s\n", pcap_geterr(np->p));
         } else {
-            fprintf(stderr, "\nPackets received: %d\n", ps.ps_recv);
-            fprintf(stderr, "Packets dropped: %d\n", ps.ps_drop);
+            NOMADCAP_STDOUT(np, "\nPackets received: %d\n", ps.ps_recv);
+            NOMADCAP_STDOUT(np, "Packets dropped: %d\n", ps.ps_drop);
         }
     }
 
