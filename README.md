@@ -11,7 +11,13 @@ sudo apt update
 sudo apt install build-essential libpcap0.8 libpcap-dev
 ```
 
-Clone and run `make` to compile. Results are in the directory `build/`.
+(Optional) Compile with IEEE OUI CSV support. Install libcsv for parsing.
+
+```bash
+sudo apt install libcsv3 libcsv3-dev
+```
+
+Clone this repository and run `make`. Results are in the directory `build/`.
 
 ```bash
 git clone https://github.com/jcormir/nomadcap.git
@@ -29,7 +35,7 @@ sudo build/nomadcap -v
 
 Output:
 
-```bash
+```
 Flags: 0x00000003
 Listening on: wlo1
 Local network: 192.168.2.0
