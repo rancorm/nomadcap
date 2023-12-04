@@ -11,7 +11,7 @@ sudo apt update
 sudo apt install build-essential libpcap0.8 libpcap-dev
 ```
 
-(Optional) Compile with IEEE OUI CSV support. Install libcsv for parsing.
+*Optional* Compile with IEEE OUI CSV support. Install libcsv for parsing.
 
 ```bash
 sudo apt install libcsv3 libcsv3-dev

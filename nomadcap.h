@@ -35,7 +35,7 @@
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
   ((pack->flags & NOMADCAP_FLAGS_##flag) == 0)
 #define NOMADCAP_FLAGS_NONE 0x0
-#define NOMADCAP_FLAGS_VERB 0x1
+#define NOMADCAP_FLAGS_VERBOSE 0x1
 #define NOMADCAP_FLAGS_ALLNET 0x2
 #define NOMADCAP_FLAGS_PROBES 0x4
 #define NOMADCAP_FLAGS_ANNOUNCE 0x8
@@ -58,7 +58,7 @@ typedef struct nomadcap_pack {
   char *device;
   char *filter;
   char *filename;
-  uint duration;
+  u_int duration;
 
   /* Application running name */
   char *pname;
@@ -66,8 +66,10 @@ typedef struct nomadcap_pack {
   /* Flags that control application logic */
   uint8_t flags;
 
+#ifdef USE_LIBCSV
   /* IEEE OUI data */
   nomadcap_oui_t **ouis;
+#endif /* USE_LIBCSV */
 
   /* PCAP */
   pcap_t *p;
@@ -84,9 +86,15 @@ typedef struct nomadcap_pack {
 
 #define NOMADCAP_STDOUT(pack, format, ...)                                     \
   do {                                                                         \
-    if (NOMADCAP_FLAG(pack, VERB)) {                                           \
+    if (NOMADCAP_FLAG(pack, VERBOSE)) {                                           \
       printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
     }                                                                          \
+  } while (0)
+
+#define NOMADCAP_FAILURE(pack, format, ...)                                    \
+  do {                                                                         \
+    fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__);                        \
+    nomadcap_exit(pack, EXIT_FAILURE);                                         \
   } while (0)
 
 #endif /* __NOMADCAP_H */

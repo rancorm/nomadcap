@@ -17,7 +17,7 @@ OBJ=$(PROJECT_NAME).o
 LIBCSV_TEST := $(shell echo "int main() { return 0; }" > libcsv_test.c && $(CC) -o libcsv_test libcsv_test.c -lcsv && echo 1)
 
 ifeq ($(LIBCSV_TEST),1)
-	CFLAGS += -DUSC_LIBCSV
+	CFLAGS += -DUSE_LIBCSV
         LDFLAGS += -lcsv
 else
         $(error "libcsv not found. Please install it.")
