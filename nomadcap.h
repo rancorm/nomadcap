@@ -86,7 +86,12 @@ typedef struct nomadcap_pack {
 
 #define NOMADCAP_STDOUT(pack, format, ...)                                     \
   do {                                                                         \
-    if (NOMADCAP_FLAG(pack, VERBOSE)) {                                           \
+    printf(format __VA_OPT__(, ) __VA_ARGS__);                                 \
+  } while (0)
+
+#define NOMADCAP_STDOUT_V(pack, format, ...)                                                                   \
+  do {                                                                         \
+    if (NOMADCAP_FLAG(pack, VERBOSE)) {                                        \
       printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
     }                                                                          \
   } while (0)
