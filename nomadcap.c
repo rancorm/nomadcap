@@ -182,10 +182,38 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
 }
 
 int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth, struct ether_arp *arp) {
-  
+  if (np->ph.caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
+    if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
+      /* Only looking for ARP requests */
+      if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
+        NOMADCAP_STDOUT_V(np, "Non ARP request, ignoring...\n");
 
-  /* Traffic looks interesting */
-  return 1;
+        return 0;
+      }
+
+      /* Check for ARP probe - ARP sender MAC is all zeros */
+      if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0 &&
+          NOMADCAP_FLAG_NOT(np, PROBES)) {
+        NOMADCAP_STDOUT_V(np, "ARP probe, ignoring...\n");
+
+        return 0;
+      }
+
+      /* Check for ARP announcement - ARP sender and target IP match */
+      if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
+          NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
+        NOMADCAP_STDOUT_V(np, "ARP announcement, ignoring...\n");
+
+        return 0;
+      }
+      
+      /* Interesting traffic */
+      return 1;
+    }
+  }
+
+  /* Boring traffic */
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -313,7 +341,7 @@ int main(int argc, char *argv[]) {
     NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
   }
 
-  /* Comile filter into BPF program */
+  /* Compile filter into BPF program */
   if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1) {
     NOMADCAP_FAILURE(np, "pcap_compile: %s\n", pcap_geterr(np->p));
   }
@@ -371,42 +399,16 @@ int main(int argc, char *argv[]) {
     /* Cast packet to ARP header */
     arp = (struct ether_arp *)(pkt + sizeof(struct ether_header));
 
-    /* Check if ARP header length is valid */
-    if (np->ph.caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
-      /* Check for Ethernet broadcasts */
-      if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
-        /* Only looking for ARP requests */
-        if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
-          NOMADCAP_STDOUT_V(np, "Non ARP request, ignoring...\n");
+    /* Check for interesting traffic */
+    if (nomadcap_interesting(np, eth, arp)) {
+      /* Check if ARP request is not local */
+      is_local = nomadcap_localnet(np, arp);
 
-          continue;
-        }
-
-        /* Check for ARP probe - ARP sender MAC is all zeros */
-        if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0 &&
-            NOMADCAP_FLAG_NOT(np, PROBES)) {
-          NOMADCAP_STDOUT_V(np, "ARP probe, ignoring...\n");
-
-          continue;
-        }
-
-        /* Check for ARP announcement - ARP sender and target IP match */
-        if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
-            NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
-          NOMADCAP_STDOUT_V(np, "ARP announcement, ignoring...\n");
-
-          continue;
-        }
-
-        /* Check if ARP request is not local */
-        is_local = nomadcap_localnet(np, arp);
-
-        if (is_local == 0 || NOMADCAP_FLAG(np, ALLNET)) {
-          /* Output ARP results */
-          nomadcap_output(np, arp);
-        } else {
-          NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
-        }
+      if (is_local == 0 || NOMADCAP_FLAG(np, ALLNET)) {
+        /* Output ARP results */
+        nomadcap_output(np, arp);
+      } else {
+        NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
       }
     }
   }
