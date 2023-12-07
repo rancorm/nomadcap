@@ -102,4 +102,8 @@ typedef struct nomadcap_pack {
     nomadcap_exit(pack, EXIT_FAILURE);                                         \
   } while (0)
 
+#ifndef ETH_ALEN
+#define ETH_ALEN 6
+#endif /* ETH_ALEN */
+
 #endif /* __NOMADCAP_H */
