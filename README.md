@@ -1,6 +1,9 @@
 # nomadcap
 
-PCAP tool that aids in locating misconfigured network stacks
+PCAP tool that aids in locating misconfigured network stacks.
+
+The tool's function is to identify and capture Address Resolution Protocol (ARP)
+requests that are not intended for the local network.
 
 ## Build
 
