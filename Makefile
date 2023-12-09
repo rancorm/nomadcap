@@ -29,11 +29,14 @@ $(shell rm -f libcsv_test.c)
 .PHONY: clean
 
 # Targets
-$(BUILD_DIR)%.o: %.c %.h
+$(BUILD_DIR)%.o: %.c %.h $(BUILD_DIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(BUILD_DIR)$(PROJECT_NAME): $(BUILD_DIR)$(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
+
+$(BUILD_DIR):
+	mkdir $@
 
 clean:
 	rm -f $(BUILD_DIR)*.o
