@@ -1,15 +1,12 @@
 #
 # nomadcap Makefile
 #
-CC=gcc
-CFLAGS=
-
-#
 PROJECT_NAME:=nomadcap
 BUILD_DIR:=build/
 
-# Uncomment the following line to include DEBUG code
-# CFLAGS=-DEBUG
+# Compiler stuff
+CC=gcc
+CFLAGS=
 LDFLAGS=-lpcap
 OBJ=$(PROJECT_NAME).o
 

@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* basename() */
+#include <libgen.h>
 #include <unistd.h>
 
 /* PCAP */
@@ -173,7 +176,7 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     np->duration = 0;
 
     /* Save program name */
-    np->pname = pname;
+    np->pname = basename(pname);
 
     return np;
   }
