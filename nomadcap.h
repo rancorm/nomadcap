@@ -12,7 +12,6 @@
 #define NOMADCAP_OUI_PATH "/usr/share/ieee-data/"
 #define NOMADCAP_OUI_FILE "oui.csv"
 #define NOMADCAP_OUI_FILEPATH NOMADCAP_OUI_PATH NOMADCAP_OUI_FILE
-#define NOMADCAP_OUI_MAXLINE 1024
 
 /* PCAP stuff */
 /* Ethernet ARP broadcast requests */
@@ -39,8 +38,14 @@
 #define NOMADCAP_FLAGS_ALLNET 0x2
 #define NOMADCAP_FLAGS_PROBES 0x4
 #define NOMADCAP_FLAGS_ANNOUNCE 0x8
-#define NOMADCAP_FLAGS_OUI 0x10
-#define NOMADCAP_FLAGS_FILE 0x20
+#define NOMADCAP_FLAGS_FILE 0x10
+
+#ifdef USE_LIBCSV
+#define NOMADCAP_FLAGS_OUI 0x20
+
+/* Initial OUI dynamic memory allocation */
+#define NOMADCAP_OUI_SIZE 4096
+#endif /* USE_LIBCSV */
 
 #define NOMADCAP_VERSION "0.1"
 
@@ -58,7 +63,7 @@ typedef struct nomadcap_pack {
   char *device;
   char *filter;
   char *filename;
-  u_int duration;
+  u_int32_t duration;
 
   /* Application running name */
   char *pname;
@@ -68,7 +73,11 @@ typedef struct nomadcap_pack {
 
 #ifdef USE_LIBCSV
   /* IEEE OUI data */
-  nomadcap_oui_t **ouis;
+  nomadcap_oui_t *oui_data;
+
+  u_int32_t num_ouis;
+  u_int32_t max_ouis;
+  u_int32_t oui_index;
 #endif /* USE_LIBCSV */
 
   /* PCAP */
@@ -105,5 +114,10 @@ typedef struct nomadcap_pack {
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif /* ETH_ALEN */
+
+void nomadcap_finddev(nomadcap_pack_t *np, char *errbuff);
+void nomadcap_signals(nomadcap_pack_t *np);
+void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf);
+void nomadcap_netprint(nomadcap_pack_t *np);
 
 #endif /* __NOMADCAP_H */

@@ -32,12 +32,6 @@ extern char *optarg;
 /* Global termination control */
 int loop = 1;
 
-int nomadcap_loadoui(char *ouipath) {
-  /* Local IEEE OUI via CSV file (if found) */
-
-  return 0;
-}
-
 void nomadcap_exit(nomadcap_pack_t *np, int code) {
   if (np) {
     /* Free strings */
@@ -45,6 +39,20 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
       free(np->device);
     if (np->filename)
       free(np->filename);
+
+#ifdef USE_LIBCSV
+    if (np->oui_data) {
+      /* Loop throuh fields and free the memory */
+      for (int i = 0; i < np->num_ouis; i++) {
+        if (np->oui_data[i].assignment) free(np->oui_data[i].assignment);
+        if (np->oui_data[i].org_address) free(np->oui_data[i].org_address);
+        if (np->oui_data[i].org_name) free(np->oui_data[i].org_name);
+        if (np->oui_data[i].registry) free(np->oui_data[i].registry);
+      }
+
+      free(np->oui_data);
+    }
+#endif /* USE_LIBCSV */
 
     /* Close capture device */
     if (np->p)
@@ -58,7 +66,117 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
   exit(code);
 }
 
-int nomadcap_localnet(nomadcap_pack_t *np, struct ether_arp *arp) {
+#ifdef USE_LIBCSV
+void nomadcap_oui_cb1(void *field, size_t num, void *data) {
+  nomadcap_pack_t *np;
+  int index;
+
+  np = (nomadcap_pack_t *)data;
+  index = 0;
+
+  /* Handle first index special case */
+  if (np->num_ouis > 0)
+    index = np->num_ouis - 1;
+
+  /* Add more memory */
+  if (np->num_ouis == np->max_ouis) {
+    np->max_ouis += NOMADCAP_OUI_SIZE;
+    np->oui_data = (nomadcap_oui_t *)realloc(np->oui_data, np->max_ouis * sizeof(nomadcap_oui_t));
+  }
+
+  /* Assign field data */
+  switch (np->oui_index) {
+    case 0:
+      np->oui_data[index].registry = strdup(field);
+      break;
+    case 1:
+      np->oui_data[index].assignment = strdup(field);
+      break;
+    case 2:
+      np->oui_data[index].org_name = strdup(field);
+      break;
+    case 3:
+      np->oui_data[index].org_address = strdup(field);
+      break;
+    default:
+      break;
+  }
+
+  np->oui_index++;
+}
+
+void nomadcap_oui_cb2(int num, void *data) {
+  nomadcap_pack_t *np;
+
+  np = (nomadcap_pack_t *)data;
+
+  /* End of OUI entry row, increase number of OUIs */
+  np->num_ouis++;
+
+  /* Reset field index */
+  np->oui_index = 0;
+}
+
+u_int32_t nomadcap_oui_size(nomadcap_pack_t *np) {
+  return np->num_ouis;
+}
+
+int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
+  struct csv_parser cp;
+  size_t nbytes;
+  char buf[4096];
+  FILE *fp;
+
+  /* Open the IEEE OUI CSV file */
+  fp = fopen(path, "r");
+
+  if (fp == NULL) {
+      perror("Error opening OUI data file");
+      
+      return 0;
+  }
+
+  /* Allocate memory for OUI data */
+  np->oui_data = (nomadcap_oui_t *)calloc(np->max_ouis,
+    sizeof(nomadcap_oui_t));
+
+  if (np->oui_data == NULL) {
+    perror("Memory allocation error");
+
+    return 0;
+  }
+
+  /* Initialize parser */
+  csv_init(&cp, CSV_STRICT|CSV_APPEND_NULL);
+
+  /* Read and parse OUI entries */
+  while ((nbytes = fread(buf, 1, sizeof(buf), fp)) > 0)
+    if (csv_parse(&cp,
+        buf,
+        nbytes,
+        nomadcap_oui_cb1,
+        nomadcap_oui_cb2,
+        np) != nbytes) {
+      fprintf(stderr, "Error parsing OUI data file: %s\n",
+      
+      csv_strerror(csv_error(&cp)));
+      exit(EXIT_FAILURE);
+    }
+
+  /* Clean up parser resources, close file */
+  csv_fini(&cp,
+    nomadcap_oui_cb1,
+    nomadcap_oui_cb2,
+    0);
+
+  fclose(fp);
+  csv_free(&cp);
+
+  return 1;
+}
+#endif /* USE_LIBCSV */
+
+int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
   bpf_u_int32 netmask_hbo, localnet_hbo;
   bpf_u_int32 netaddr, netaddr_hbo;
 
@@ -110,9 +228,8 @@ void nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
     }
 
     /* Output seperator */
-    if (i < size - 1) {
+    if (i < size - 1)
       printf("%c", sep);
-    }
   }
 }
 
@@ -124,7 +241,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
          np->pname);
   NOMADCAP_STDOUT(np, "\t-i <intf>\t\tCapture on interface <intf>\n");
   NOMADCAP_STDOUT(np, "\t-f <filename.pcap>\tOffline capture using <filename.pcap>\n");
-  NOMADCAP_STDOUT(np, "\t-d <seconds>\tDuration of capture (seconds)\n");
+  NOMADCAP_STDOUT(np, "\t-d <seconds>\t\tDuration of capture (seconds)\n");
 
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "\t-O\t\t\tMAC OUI to organization\n");
@@ -164,16 +281,21 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
   if (np) {
     /* Set some sane defaults */
     np->device = NULL;
+    np->filename = NULL;
     np->p = NULL;
     np->filter = NOMADCAP_FILTER;
     np->flags = NOMADCAP_FLAGS_NONE;
 
-#ifdef USE_LIBCSV
-    np->ouis = NULL;
-#endif /* USE_LIBCSV */
-
-    np->filename = NULL;
+    /* Capture forever by default */
     np->duration = 0;
+
+#ifdef USE_LIBCSV
+    /* Initialize OUI data and state variables */
+    np->oui_data = NULL;
+    np->num_ouis = 0;
+    np->oui_index = 0;
+    np->max_ouis = NOMADCAP_OUI_SIZE;
+#endif /* USE_LIBCSV */
 
     /* Save program name */
     np->pname = basename(pname);
@@ -221,13 +343,10 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth, struct e
 
 int main(int argc, char *argv[]) {
   nomadcap_pack_t *np;
-  pcap_if_t *devs;
   struct pcap_stat ps;
   struct ether_header *eth;
   struct ether_arp *arp;
   char errbuf[PCAP_ERRBUF_SIZE];
-  char localnet_s[INET_ADDRSTRLEN];
-  char netmask_s[INET_ADDRSTRLEN];
   uint8_t *pkt;
   int c = -1, is_local = -1;
 
@@ -282,40 +401,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /* Offline file capture */
-  if (NOMADCAP_FLAG(np, FILE)) {
-    NOMADCAP_STDOUT_V(np, "Loading capture file: %s\n", np->filename);
-
-    np->p = pcap_open_offline(np->filename, errbuf);
-
-    /* Catch PCAP open errors */
-    if (np->p == NULL) {
-      NOMADCAP_FAILURE(np, "pcap_open_offline: %s\n", errbuf);
-    }
-  }
-
   /* Leave it to libpcap to find an interface */
-  if (np->device == NULL) {
-    NOMADCAP_STDOUT_V(np, "Looking for interface...\n");
-
-    /* Find all available network interfaces */
-    if (pcap_findalldevs(&devs, errbuf) == -1) {
-      NOMADCAP_FAILURE(np, "pcap_findalldevs: %s\n", errbuf);
-    }
-
-    /* No interfaces, print an error message and exit */
-    if (devs == NULL) {
-      NOMADCAP_FAILURE(np, "No interfaces found\n");
-    }
-
-    /* Copy device name of first found device */
-    np->device = strdup(devs[0].name);
-
-    NOMADCAP_STDOUT_V(np, "Found interface: %s\n", np->device);
-
-    /* Free the list of interfaces */
-    pcap_freealldevs(devs);
-  }
+  if (np->device == NULL)
+    nomadcap_finddev(np, errbuf);
 
   NOMADCAP_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
 
@@ -324,79 +412,43 @@ int main(int argc, char *argv[]) {
   if (NOMADCAP_FLAG(np, OUI)) {
     NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
 
-    nomadcap_loadoui(NOMADCAP_OUI_FILEPATH);
+    nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
+
+    NOMADCAP_STDOUT_V(np, "Loaded %d OUIs\n", nomadcap_oui_size(np));
   }
 #endif /* USE_LIBCSV */
 
-  /* No file name from user, live capture */
-  if (NOMADCAP_FLAG_NOT(np, FILE)) {
-    np->p = pcap_open_live(np->device, NOMADCAP_SNAPLEN, NOMADCAP_PROMISC,
-                           NOMADCAP_TIMEOUT, errbuf);
+  /* Open device/file, set filter, check datalink, and 
+    .lookup network and mask */
+  nomadcap_pcap_setup(np, errbuf);
 
-    /* Catch PCAP open errors */
-    if (np->p == NULL) {
-      NOMADCAP_FAILURE(np, "pcap_open_live: %s\n", errbuf);
-    }
-  }
-
-  /* Look up local network and mask */
-  if (pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1) {
-    NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
-  }
-
-  /* Compile filter into BPF program */
-  if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1) {
-    NOMADCAP_FAILURE(np, "pcap_compile: %s\n", pcap_geterr(np->p));
-  }
-
-  /* Set program as filter */
-  if (pcap_setfilter(np->p, &np->code) == -1) {
-    NOMADCAP_FAILURE(np, "pcap_setfilter: %s\n", errbuf);
-  }
-
-  /* Check datalink */
-  if (pcap_datalink(np->p) != DLT_EN10MB) {
-    NOMADCAP_FAILURE(np, "pcap_datalink: Ethernet only, sorry.");
-  }
-
-  /* Interrupt signal */
-  if (nomadcap_signal(SIGINT, nomadcap_cleanup) == -1) {
-    NOMADCAP_FAILURE(np, "Can't catch SIGINT signal\n");
-  }
-
-  /* Duration alarm */
-  if (np->duration > 0) {
-    NOMADCAP_STDOUT_V(np, "Capturing for %d seconds\n", np->duration);
-
-    if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1) {
-      NOMADCAP_FAILURE(np, "Can't catch SIGALRM signal\n");
-    }
-
-    /* Set alarm */
-    alarm(np->duration);
-  }
+  /* Setup signal handlers */
+  nomadcap_signals(np);
 
   /* Current state */
   NOMADCAP_STDOUT(np, "Listening on: %s\n", np->device);
 
   /* Network details (verbose only)... */
-  if (NOMADCAP_FLAG(np, VERBOSE)) {
-    /* Convert local network and mask to human readable strings */
-    inet_ntop(AF_INET, &np->localnet, localnet_s, sizeof(localnet_s));
-    inet_ntop(AF_INET, &np->netmask, netmask_s, sizeof(netmask_s));
-
-    NOMADCAP_STDOUT(np, "Local network: %s\n", localnet_s);
-    NOMADCAP_STDOUT(np, "Network mask: %s\n", netmask_s);
-  }
+  if (NOMADCAP_FLAG(np, VERBOSE))
+    nomadcap_netprint(np);
 
   /* Loop */
   while (loop) {
     pkt = (uint8_t *)pcap_next(np->p, &np->ph);
 
+    /* Bail if we have no data and in offline mode */
+    if (pkt == NULL && NOMADCAP_FLAG(np, FILE)) {
+      NOMADCAP_STDOUT_V(np, "Reached end of capture file: %s\n", np->filename);
+      
+      /* Prevents looping forever */
+      loop = 0;
+    }
+
     /* Catch timer expiring with no data in packet buffer */
     if (pkt == NULL)
       continue;
 
+    /* Cast packet to Ethernet header */
     eth = (struct ether_header *)pkt;
 
     /* Cast packet to ARP header */
@@ -405,10 +457,10 @@ int main(int argc, char *argv[]) {
     /* Check for interesting traffic */
     if (nomadcap_interesting(np, eth, arp)) {
       /* Check if ARP request is not local */
-      is_local = nomadcap_localnet(np, arp);
+      is_local = nomadcap_islocalnet(np, arp);
 
+      /* Output results if not local or all networks flag set */
       if (is_local == 0 || NOMADCAP_FLAG(np, ALLNET)) {
-        /* Output ARP results */
         nomadcap_output(np, arp);
       } else {
         NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
@@ -417,7 +469,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Who doesn't love statistics (verbose only) */
-  if (NOMADCAP_FLAG(np, VERBOSE)) {
+  if (NOMADCAP_FLAG(np, VERBOSE) && NOMADCAP_FLAG_NOT(np, FILE)) {
     if (pcap_stats(np->p, &ps) == -1) {
       NOMADCAP_STDERR(np, "pcap_stats: %s\n", pcap_geterr(np->p));
     } else {
@@ -427,4 +479,101 @@ int main(int argc, char *argv[]) {
   }
 
   nomadcap_exit(np, EXIT_SUCCESS);
+}
+
+void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf)
+{
+  pcap_if_t *devs;
+
+  NOMADCAP_STDOUT_V(np, "Looking for interface...\n");
+
+  /* Find all available network interfaces */
+  if (pcap_findalldevs(&devs, errbuf) == -1)
+    NOMADCAP_FAILURE(np, "pcap_findalldevs: %s\n", errbuf);
+
+  /* No interfaces, print an error message and exit */
+  if (devs == NULL)
+    NOMADCAP_FAILURE(np, "No interfaces found\n");
+
+  /* Copy device name of first found device */
+  np->device = strdup(devs[0].name);
+
+  NOMADCAP_STDOUT_V(np, "Found interface: %s\n", np->device);
+
+  /* Free the list of interfaces */
+  pcap_freealldevs(devs);
+}
+
+void nomadcap_netprint(nomadcap_pack_t *np)
+{
+  char localnet_s[INET_ADDRSTRLEN];
+  char netmask_s[INET_ADDRSTRLEN];
+
+  /* Convert local network and mask to human readable strings */
+  inet_ntop(AF_INET, &np->localnet, localnet_s, sizeof(localnet_s));
+  inet_ntop(AF_INET, &np->netmask, netmask_s, sizeof(netmask_s));
+
+  NOMADCAP_STDOUT(np, "Local network: %s\n", localnet_s);
+  NOMADCAP_STDOUT(np, "Network mask: %s\n", netmask_s);
+}
+
+void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf)
+{
+  /* No file name from user, live capture */
+  if (NOMADCAP_FLAG_NOT(np, FILE))
+  {
+    np->p = pcap_open_live(np->device, NOMADCAP_SNAPLEN, NOMADCAP_PROMISC,
+                           NOMADCAP_TIMEOUT, errbuf);
+
+    /* Catch open errors */
+    if (np->p == NULL)
+      NOMADCAP_FAILURE(np, "pcap_open_live: %s\n", errbuf);
+  }
+  else
+  {
+    /* Offline capture */
+    NOMADCAP_STDOUT_V(np, "Loading capture file: %s\n", np->filename);
+
+    /* Open file */
+    np->p = pcap_open_offline(np->filename, errbuf);
+
+    /* Catch open errors */
+    if (np->p == NULL)
+      NOMADCAP_FAILURE(np, "pcap_open_offline: %s\n", errbuf);
+  }
+
+  /* Look up local network and mask */
+  if (pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1)
+    NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
+
+  /* Compile filter into BPF program */
+  if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1)
+    NOMADCAP_FAILURE(np, "pcap_compile: %s\n", pcap_geterr(np->p));
+
+  /* Set program as filter */
+  if (pcap_setfilter(np->p, &np->code) == -1)
+    NOMADCAP_FAILURE(np, "pcap_setfilter: %s\n", errbuf);
+
+  /* Check datalink */
+  if (pcap_datalink(np->p) != DLT_EN10MB)
+    NOMADCAP_FAILURE(np, "pcap_datalink: Ethernet only, sorry.");
+}
+
+void nomadcap_signals(nomadcap_pack_t *np)
+{
+  /* Interrupt signal */
+  if (nomadcap_signal(SIGINT, nomadcap_cleanup) == -1)
+    NOMADCAP_FAILURE(np, "Can't catch SIGINT signal\n");
+
+  /* Duration alarm */
+  if (np->duration > 0)
+  {
+    NOMADCAP_STDOUT_V(np, "Capturing for %d seconds\n", np->duration);
+
+    if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1)
+      NOMADCAP_FAILURE(np, "Can't catch SIGALRM signal\n");
+
+    /* Set alarm */
+    alarm(np->duration);
+  }
 }

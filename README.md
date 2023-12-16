@@ -38,14 +38,15 @@ sudo build/nomadcap -v
 
 Output:
 
-```
-Flags: 0x00000003
+```text
+Looking for interface...
+Found interface: wlo1
+Flags: 0x00000001
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
-Filter: arp
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
-10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
+ARP announcement, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 ^CInterrupt signal caught...

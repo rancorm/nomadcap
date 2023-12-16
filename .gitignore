@@ -1,7 +1,15 @@
+#
+# nomadcap .gitignore
+#
 # Visual Studio Code project settings
 .vscode/
 
 # Project build directory
 build/
 
+# Object files
 *.o
+
+# Capture files
+*.pcap
+*.pcapng
