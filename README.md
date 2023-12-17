@@ -39,7 +39,7 @@ build/nomadcap -h
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV]
+Usage: nomadcap [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV1]
 
         -i <intf>               Capture on interface <intf>
         -f <filename.pcap>      Offline capture using <filename.pcap>

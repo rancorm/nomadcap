@@ -262,7 +262,7 @@ void nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
 }
 
 void nomadcap_usage(nomadcap_pack_t *np) {
-  /* Banner*/
+  /* Banner */
   NOMADCAP_STDOUT(np, "%s v%s [%s]\n\n", np->pname, NOMADCAP_VERSION,
                   NOMADCAP_BANNER);
 
