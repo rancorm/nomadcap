@@ -43,11 +43,15 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
 #ifdef USE_LIBCSV
     if (np->oui_data) {
       /* Loop throuh fields and free the memory */
-      for (int i = 0; i < np->num_ouis; i++) {
-        if (np->oui_data[i].assignment) free(np->oui_data[i].assignment);
-        if (np->oui_data[i].org_address) free(np->oui_data[i].org_address);
-        if (np->oui_data[i].org_name) free(np->oui_data[i].org_name);
-        if (np->oui_data[i].registry) free(np->oui_data[i].registry);
+      for (int i = 0; i < np->oui_num; i++) {
+        if (np->oui_data[i].assignment)
+          free(np->oui_data[i].assignment);
+        if (np->oui_data[i].org_address)
+          free(np->oui_data[i].org_address);
+        if (np->oui_data[i].org_name)
+          free(np->oui_data[i].org_name);
+        if (np->oui_data[i].registry)
+          free(np->oui_data[i].registry);
       }
 
       free(np->oui_data);
@@ -67,6 +71,32 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
 }
 
 #ifdef USE_LIBCSV
+nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
+                                    struct ether_arp *arp) {
+  char oui[7], *assignment;
+  int index;
+
+  /* Convert to char[] for string compare */
+  snprintf(oui, sizeof(oui), "%02X%02X%02X", arp->arp_sha[0], arp->arp_sha[1],
+           arp->arp_sha[2]);
+
+  oui[6] = '\0';
+
+  /* Loop through OUI entries looking for a match */
+  for (index = 0; index < np->oui_num - 1; index++) {
+    assignment = np->oui_data[index].assignment;
+
+    /* Increment entry count and return the entry */
+    if (strncmp(oui, assignment, 6) == 0) {
+      np->oui_data[index].count++;
+
+      return &np->oui_data[index];
+    }
+  }
+
+  return NULL;
+}
+
 void nomadcap_oui_cb1(void *field, size_t num, void *data) {
   nomadcap_pack_t *np;
   int index;
@@ -74,34 +104,36 @@ void nomadcap_oui_cb1(void *field, size_t num, void *data) {
   np = (nomadcap_pack_t *)data;
   index = 0;
 
-  /* Handle first index special case */
-  if (np->num_ouis > 0)
-    index = np->num_ouis - 1;
+  /* Calculate index of OUI entry */
+  if (np->oui_num > 0)
+    index = np->oui_num - 1;
 
   /* Add more memory */
-  if (np->num_ouis == np->max_ouis) {
-    np->max_ouis += NOMADCAP_OUI_SIZE;
-    np->oui_data = (nomadcap_oui_t *)realloc(np->oui_data, np->max_ouis * sizeof(nomadcap_oui_t));
+  if (np->oui_num == np->oui_max) {
+    np->oui_max += NOMADCAP_OUI_ENTRIES;
+    np->oui_data = (nomadcap_oui_t *)realloc(
+        np->oui_data, np->oui_max * sizeof(nomadcap_oui_t));
   }
 
   /* Assign field data */
   switch (np->oui_index) {
-    case 0:
-      np->oui_data[index].registry = strdup(field);
-      break;
-    case 1:
-      np->oui_data[index].assignment = strdup(field);
-      break;
-    case 2:
-      np->oui_data[index].org_name = strdup(field);
-      break;
-    case 3:
-      np->oui_data[index].org_address = strdup(field);
-      break;
-    default:
-      break;
+  case 0:
+    np->oui_data[index].registry = strdup(field);
+    break;
+  case 1:
+    np->oui_data[index].assignment = strdup(field);
+    break;
+  case 2:
+    np->oui_data[index].org_name = strdup(field);
+    break;
+  case 3:
+    np->oui_data[index].org_address = strdup(field);
+    break;
+  default:
+    break;
   }
 
+  /* Increase OUI index for next run */
   np->oui_index++;
 }
 
@@ -110,16 +142,19 @@ void nomadcap_oui_cb2(int num, void *data) {
 
   np = (nomadcap_pack_t *)data;
 
+  /* Set OUI entry count to zero */
+  if (np->oui_num > 0) {
+    np->oui_data[np->oui_num - 1].count = 0;
+  }
+
   /* End of OUI entry row, increase number of OUIs */
-  np->num_ouis++;
+  np->oui_num++;
 
   /* Reset field index */
   np->oui_index = 0;
 }
 
-u_int32_t nomadcap_oui_size(nomadcap_pack_t *np) {
-  return np->num_ouis;
-}
+u_int32_t nomadcap_oui_size(nomadcap_pack_t *np) { return np->oui_num; }
 
 int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
   struct csv_parser cp;
@@ -131,14 +166,13 @@ int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
   fp = fopen(path, "r");
 
   if (fp == NULL) {
-      perror("Error opening OUI data file");
-      
-      return 0;
+    perror("Error opening OUI data file");
+
+    return 0;
   }
 
   /* Allocate memory for OUI data */
-  np->oui_data = (nomadcap_oui_t *)calloc(np->max_ouis,
-    sizeof(nomadcap_oui_t));
+  np->oui_data = (nomadcap_oui_t *)calloc(np->oui_max, sizeof(nomadcap_oui_t));
 
   if (np->oui_data == NULL) {
     perror("Memory allocation error");
@@ -147,27 +181,21 @@ int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
   }
 
   /* Initialize parser */
-  csv_init(&cp, CSV_STRICT|CSV_APPEND_NULL);
+  csv_init(&cp, CSV_STRICT | CSV_APPEND_NULL);
 
   /* Read and parse OUI entries */
+  /* Function _cb1 handles fields, cb2 handles row end */
   while ((nbytes = fread(buf, 1, sizeof(buf), fp)) > 0)
-    if (csv_parse(&cp,
-        buf,
-        nbytes,
-        nomadcap_oui_cb1,
-        nomadcap_oui_cb2,
-        np) != nbytes) {
+    if (csv_parse(&cp, buf, nbytes, nomadcap_oui_cb1, nomadcap_oui_cb2, np) !=
+        nbytes) {
       fprintf(stderr, "Error parsing OUI data file: %s\n",
-      
-      csv_strerror(csv_error(&cp)));
+
+              csv_strerror(csv_error(&cp)));
       exit(EXIT_FAILURE);
     }
 
   /* Clean up parser resources, close file */
-  csv_fini(&cp,
-    nomadcap_oui_cb1,
-    nomadcap_oui_cb2,
-    0);
+  csv_fini(&cp, nomadcap_oui_cb1, nomadcap_oui_cb2, 0);
 
   fclose(fp);
   csv_free(&cp);
@@ -235,12 +263,15 @@ void nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
 
 void nomadcap_usage(nomadcap_pack_t *np) {
   /* Banner*/
-  NOMADCAP_STDOUT(np, "%s v%s [%s]\n\n", np->pname, NOMADCAP_VERSION, NOMADCAP_BANNER);
+  NOMADCAP_STDOUT(np, "%s v%s [%s]\n\n", np->pname, NOMADCAP_VERSION,
+                  NOMADCAP_BANNER);
 
-  NOMADCAP_STDOUT(np, "Usage: %s [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV]\n\n",
-         np->pname);
+  NOMADCAP_STDOUT(
+      np, "Usage: %s [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV]\n\n",
+      np->pname);
   NOMADCAP_STDOUT(np, "\t-i <intf>\t\tCapture on interface <intf>\n");
-  NOMADCAP_STDOUT(np, "\t-f <filename.pcap>\tOffline capture using <filename.pcap>\n");
+  NOMADCAP_STDOUT(
+      np, "\t-f <filename.pcap>\tOffline capture using <filename.pcap>\n");
   NOMADCAP_STDOUT(np, "\t-d <seconds>\t\tDuration of capture (seconds)\n");
 
 #ifdef USE_LIBCSV
@@ -250,14 +281,18 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-A\t\t\tAll networks (includes local traffic)\n");
   NOMADCAP_STDOUT(np, "\t-p\t\t\tProcess ARP probes\n");
   NOMADCAP_STDOUT(np, "\t-a\t\t\tProcess ARP announcements\n");
+  NOMADCAP_STDOUT(np, "\t-1\t\t\tExit after single match\n");
   NOMADCAP_STDOUT(np, "\t-v\t\t\tVerbose mode\n");
   NOMADCAP_STDOUT(np, "\t-V\t\t\tVersion\n");
 
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
 
+/* Format: <Sender IP> [<Sender MAC>] is looking for <Target IP> */
 void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
-  /* Format: <Sender IP> [<Sender MAC>] is looking for <Target IP> */
+#ifdef USE_LIBCSV
+  nomadcap_oui_t *oui_entry;
+#endif /* USE_LIBCSV */
 
   /* Sender IP */
   nomadcap_aprint(arp->arp_spa, 4, '.', 0);
@@ -265,6 +300,17 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   /* Sender MAC */
   printf(" [");
   nomadcap_aprint(arp->arp_sha, ETH_ALEN, ':', 1);
+
+#ifdef USE_LIBCSV
+  /* Output OUI org. details */
+  if (NOMADCAP_FLAG(np, OUI)) {
+    oui_entry = nomadcap_oui_lookup(np, arp);
+
+    if (oui_entry)
+      NOMADCAP_STDOUT_V(np, " - %s", oui_entry->org_name);
+  }
+#endif /* USE_LIBCSV */
+
   printf("] is looking for ");
 
   /* Target IP */
@@ -292,9 +338,9 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
 #ifdef USE_LIBCSV
     /* Initialize OUI data and state variables */
     np->oui_data = NULL;
-    np->num_ouis = 0;
+    np->oui_num = 0;
     np->oui_index = 0;
-    np->max_ouis = NOMADCAP_OUI_SIZE;
+    np->oui_max = NOMADCAP_OUI_ENTRIES;
 #endif /* USE_LIBCSV */
 
     /* Save program name */
@@ -306,7 +352,8 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
   return NULL;
 }
 
-int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth, struct ether_arp *arp) {
+int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
+                         struct ether_arp *arp) {
   if (np->ph.caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
     if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
       /* Only looking for ARP requests */
@@ -331,7 +378,7 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth, struct e
 
         return 0;
       }
-      
+
       /* Interesting traffic */
       return 1;
     }
@@ -390,6 +437,9 @@ int main(int argc, char *argv[]) {
     case 'v':
       np->flags |= NOMADCAP_FLAGS_VERBOSE;
       break;
+    case '1':
+      np->flags |= NOMADCAP_FLAGS_ONE;
+      break;
     case 'V':
       NOMADCAP_STDOUT(np, "%s\n", NOMADCAP_VERSION);
       nomadcap_exit(np, EXIT_SUCCESS);
@@ -410,7 +460,8 @@ int main(int argc, char *argv[]) {
   /* Load IEEE OUI data */
 #ifdef USE_LIBCSV
   if (NOMADCAP_FLAG(np, OUI)) {
-    NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n", NOMADCAP_OUI_FILEPATH);
+    NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n",
+                      NOMADCAP_OUI_FILEPATH);
 
     nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
 
@@ -418,7 +469,7 @@ int main(int argc, char *argv[]) {
   }
 #endif /* USE_LIBCSV */
 
-  /* Open device/file, set filter, check datalink, and 
+  /* Open device/file, set filter, check datalink, and
     .lookup network and mask */
   nomadcap_pcap_setup(np, errbuf);
 
@@ -439,7 +490,7 @@ int main(int argc, char *argv[]) {
     /* Bail if we have no data and in offline mode */
     if (pkt == NULL && NOMADCAP_FLAG(np, FILE)) {
       NOMADCAP_STDOUT_V(np, "Reached end of capture file: %s\n", np->filename);
-      
+
       /* Prevents looping forever */
       loop = 0;
     }
@@ -462,6 +513,9 @@ int main(int argc, char *argv[]) {
       /* Output results if not local or all networks flag set */
       if (is_local == 0 || NOMADCAP_FLAG(np, ALLNET)) {
         nomadcap_output(np, arp);
+
+        /* Terminate loop if only looking for one match */
+        if (NOMADCAP_FLAG(np, ONE)) loop = 0;
       } else {
         NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
       }
@@ -481,8 +535,7 @@ int main(int argc, char *argv[]) {
   nomadcap_exit(np, EXIT_SUCCESS);
 }
 
-void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf)
-{
+void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
   pcap_if_t *devs;
 
   NOMADCAP_STDOUT_V(np, "Looking for interface...\n");
@@ -504,8 +557,7 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf)
   pcap_freealldevs(devs);
 }
 
-void nomadcap_netprint(nomadcap_pack_t *np)
-{
+void nomadcap_netprint(nomadcap_pack_t *np) {
   char localnet_s[INET_ADDRSTRLEN];
   char netmask_s[INET_ADDRSTRLEN];
 
@@ -517,20 +569,16 @@ void nomadcap_netprint(nomadcap_pack_t *np)
   NOMADCAP_STDOUT(np, "Network mask: %s\n", netmask_s);
 }
 
-void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf)
-{
+void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
   /* No file name from user, live capture */
-  if (NOMADCAP_FLAG_NOT(np, FILE))
-  {
+  if (NOMADCAP_FLAG_NOT(np, FILE)) {
     np->p = pcap_open_live(np->device, NOMADCAP_SNAPLEN, NOMADCAP_PROMISC,
                            NOMADCAP_TIMEOUT, errbuf);
 
     /* Catch open errors */
     if (np->p == NULL)
       NOMADCAP_FAILURE(np, "pcap_open_live: %s\n", errbuf);
-  }
-  else
-  {
+  } else {
     /* Offline capture */
     NOMADCAP_STDOUT_V(np, "Loading capture file: %s\n", np->filename);
 
@@ -559,15 +607,13 @@ void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf)
     NOMADCAP_FAILURE(np, "pcap_datalink: Ethernet only, sorry.");
 }
 
-void nomadcap_signals(nomadcap_pack_t *np)
-{
+void nomadcap_signals(nomadcap_pack_t *np) {
   /* Interrupt signal */
   if (nomadcap_signal(SIGINT, nomadcap_cleanup) == -1)
     NOMADCAP_FAILURE(np, "Can't catch SIGINT signal\n");
 
   /* Duration alarm */
-  if (np->duration > 0)
-  {
+  if (np->duration > 0) {
     NOMADCAP_STDOUT_V(np, "Capturing for %d seconds\n", np->duration);
 
     if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1)

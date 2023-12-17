@@ -28,7 +28,7 @@
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff"
 
 /* Application specific */
-#define NOMADCAP_OPTS "OApai:f:d:hvV"
+#define NOMADCAP_OPTS "OApai:f:d:hvV1"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -39,12 +39,13 @@
 #define NOMADCAP_FLAGS_PROBES 0x4
 #define NOMADCAP_FLAGS_ANNOUNCE 0x8
 #define NOMADCAP_FLAGS_FILE 0x10
+#define NOMADCAP_FLAGS_ONE 0x20
 
 #ifdef USE_LIBCSV
-#define NOMADCAP_FLAGS_OUI 0x20
+#define NOMADCAP_FLAGS_OUI 0x40
 
 /* Initial OUI dynamic memory allocation */
-#define NOMADCAP_OUI_SIZE 4096
+#define NOMADCAP_OUI_ENTRIES 4096
 #endif /* USE_LIBCSV */
 
 #define NOMADCAP_VERSION "0.1"
@@ -55,6 +56,7 @@ typedef struct nomadcap_oui {
   char *assignment;
   char *org_name;
   char *org_address;
+  u_int32_t count;
 } nomadcap_oui_t;
 
 /* Application state package */
@@ -75,8 +77,8 @@ typedef struct nomadcap_pack {
   /* IEEE OUI data */
   nomadcap_oui_t *oui_data;
 
-  u_int32_t num_ouis;
-  u_int32_t max_ouis;
+  u_int32_t oui_num;
+  u_int32_t oui_max;
   u_int32_t oui_index;
 #endif /* USE_LIBCSV */
 
