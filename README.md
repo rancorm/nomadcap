@@ -30,7 +30,30 @@ make
 
 ## Usage
 
-Run `nomadcap` with root privileges or through `sudo`.
+Run `nomadcap -h` to show help.
+
+```bash
+build/nomadcap -h
+```
+
+```text
+nomadcap v0.1 [Mis-configured network stack identification tool]
+
+Usage: nomadcap [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV]
+
+        -i <intf>               Capture on interface <intf>
+        -f <filename.pcap>      Offline capture using <filename.pcap>
+        -d <seconds>            Duration of capture (seconds)
+        -O                      MAC OUI to organization
+        -A                      All networks (includes local traffic)
+        -p                      Process ARP probes
+        -a                      Process ARP announcements
+        -1                      Exit after single match
+        -v                      Verbose mode
+        -V                      Version
+```
+
+Run `nomadcap` with root privileges or through `sudo` to allow capturing of traffic.
 
 ```bash
 sudo build/nomadcap -v
