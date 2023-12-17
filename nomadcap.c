@@ -267,7 +267,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
                   NOMADCAP_BANNER);
 
   NOMADCAP_STDOUT(
-      np, "Usage: %s [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV]\n\n",
+      np, "Usage: %s [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV1]\n\n",
       np->pname);
   NOMADCAP_STDOUT(np, "\t-i <intf>\t\tCapture on interface <intf>\n");
   NOMADCAP_STDOUT(

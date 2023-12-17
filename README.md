@@ -36,7 +36,10 @@ Run `nomadcap` with root privileges or through `sudo`.
 sudo build/nomadcap -v
 ```
 
-Output:
+### Output
+
+Capturing on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
+In this example `10.0.70.5` is the misconfigured host looking for the default gateway `10.0.70.1`.
 
 ```text
 Looking for interface...
