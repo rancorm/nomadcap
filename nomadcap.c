@@ -142,16 +142,16 @@ void nomadcap_oui_cb2(int num, void *data) {
 
   np = (nomadcap_pack_t *)data;
 
-  /* Set OUI entry count to zero */
-  if (np->oui_num > 0) {
-    np->oui_data[np->oui_num - 1].count = 0;
-  }
-
   /* End of OUI entry row, increase number of OUIs */
   np->oui_num++;
 
   /* Reset field index */
   np->oui_index = 0;
+
+  /* Set OUI entry count to zero */
+  if (np->oui_num > 0) {
+    np->oui_data[np->oui_num - 1].count = 0;
+  }
 }
 
 u_int32_t nomadcap_oui_size(nomadcap_pack_t *np) { return np->oui_num; }
