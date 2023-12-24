@@ -30,13 +30,17 @@ make
 
 ## Usage
 
+General tool and command line switch usage.
+
+### Help
+
 Run `nomadcap -h` to show help.
 
 ```bash
 build/nomadcap -h
 ```
 
-### Help
+#### Menu
 
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
@@ -55,13 +59,15 @@ Usage: nomadcap [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV1]
         -V                      Version
 ```
 
+### Capture
+
 Run `nomadcap` with root privileges or through `sudo` to allow capturing of traffic.
 
 ```bash
 sudo build/nomadcap -v
 ```
 
-### Output
+#### Output
 
 Capturing on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
 In this example `10.0.70.5` is the misconfigured host looking for the default gateway `10.0.70.1`.
