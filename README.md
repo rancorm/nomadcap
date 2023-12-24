@@ -36,6 +36,8 @@ Run `nomadcap -h` to show help.
 build/nomadcap -h
 ```
 
+### Help
+
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
