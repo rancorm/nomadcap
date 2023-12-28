@@ -45,9 +45,11 @@ build/nomadcap -h
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV1]
+Usage: nomadcap [-i intf] [-n <network> -m <netmask>] [-f filename.pcap] [-d seconds] [-OApahvV1]
 
         -i <intf>               Capture on interface <intf>
+        -n <network>            Set capture <network> (e.g. 192.0.2.0)
+        -m <netmask>            Netmask for capture network (e.g. 255.255.255.0)
         -f <filename.pcap>      Offline capture using <filename.pcap>
         -d <seconds>            Duration of capture (seconds)
         -O                      MAC OUI to organization
@@ -87,5 +89,32 @@ ARP announcement, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 
 Packets received: 5
+Packets dropped: 0
+```
+
+Another example using one match (1), OUI lookup (O) and verbose mode (v).
+
+```bash
+sudo build/nomadcap -Ov -1
+```
+
+```text
+[sudo] password for jonathan: 
+Looking for interface...
+Found interface: wlo1
+Flags: 0x00000241
+Loading OUI data from /usr/share/ieee-data/oui.csv...
+Loaded 32531 OUIs
+Listening on: wlo1
+Local network: 192.168.2.0
+Network mask: 255.255.255.0
+Local traffic, ignoring...
+Local traffic, ignoring...
+Local traffic, ignoring...
+Local traffic, ignoring...
+Local traffic, ignoring...
+10.0.70.252 [a4:2a:95:15:c9:10 - D-Link International] is looking for 10.0.70.1
+
+Packets received: 10
 Packets dropped: 0
 ```
