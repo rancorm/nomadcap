@@ -32,6 +32,25 @@ extern char *optarg;
 /* Global termination control */
 int loop = 1;
 
+uint32_t nomadcap_addr2uint(nomadcap_pack_t *pack, char *addr) {
+  int i;
+  uint32_t result = 0;
+  char *token;
+  char ip_copy[INET_ADDRSTRLEN];
+  
+  strcpy(ip_copy, addr);
+
+  /* Split the IP address into its four octets */
+  token = strtok(ip_copy, ".");
+
+  for (i = 0; i < 4 && token != NULL; i++) {
+      result |= (atoi(token) << (24 - i * 8));
+      token = strtok(NULL, ".");
+  }
+
+  return ntohl(result);
+}
+
 void nomadcap_exit(nomadcap_pack_t *np, int code) {
   if (np) {
     /* Free strings */
@@ -267,9 +286,11 @@ void nomadcap_usage(nomadcap_pack_t *np) {
                   NOMADCAP_BANNER);
 
   NOMADCAP_STDOUT(
-      np, "Usage: %s [-i intf] [-f filename.pcap] [-d seconds] [-OApahvV1]\n\n",
+      np, "Usage: %s [-i intf] [-n <network> -m <netmask>] [-f filename.pcap] [-d seconds] [-OApahvV1]\n\n",
       np->pname);
   NOMADCAP_STDOUT(np, "\t-i <intf>\t\tCapture on interface <intf>\n");
+  NOMADCAP_STDOUT(np, "\t-n <network>\t\tCapture network (e.g. 192.0.2.0)\n");
+  NOMADCAP_STDOUT(np, "\t-m <netmask>\t\tCapture network mask (e.g. 255.255.255.0)\n");
   NOMADCAP_STDOUT(
       np, "\t-f <filename.pcap>\tOffline capture using <filename.pcap>\n");
   NOMADCAP_STDOUT(np, "\t-d <seconds>\t\tDuration of capture (seconds)\n");
@@ -426,6 +447,14 @@ int main(int argc, char *argv[]) {
     case 'i':
       np->device = strdup(optarg);
       break;
+    case 'n':
+      np->flags |= NOMADCAP_FLAGS_NETWORK;
+      np->localnet = nomadcap_addr2uint(np, optarg);
+      break;
+    case 'm':
+      np->flags |= NOMADCAP_FLAGS_NETMASK;
+      np->netmask = nomadcap_addr2uint(np, optarg);
+      break;
     case 'f':
       np->flags |= NOMADCAP_FLAGS_FILE;
       np->filename = strdup(optarg);
@@ -450,6 +479,11 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
+
+  /* Exit with message to use netmask switch */
+  if (NOMADCAP_FLAG(np, NETWORK) && 
+    NOMADCAP_FLAG_NOT(np, NETMASK))
+      NOMADCAP_FAILURE(np, "Use -m (netmask) with -n (network) switch\n");
 
   /* Leave it to libpcap to find an interface */
   if (np->device == NULL)
@@ -590,9 +624,10 @@ void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
       NOMADCAP_FAILURE(np, "pcap_open_offline: %s\n", errbuf);
   }
 
-  /* Look up local network and mask */
-  if (pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1)
-    NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
+  /* Look up local network and mask, if not provided by user on command line */
+  if (NOMADCAP_FLAG_NOT(np, NETWORK) && 
+    pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1)
+      NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
 
   /* Compile filter into BPF program */
   if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1)

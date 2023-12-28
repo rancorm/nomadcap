@@ -28,7 +28,7 @@
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff"
 
 /* Application specific */
-#define NOMADCAP_OPTS "OApai:f:d:hvV1"
+#define NOMADCAP_OPTS "OApai:n:m:f:d:hvV1"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -37,12 +37,14 @@
 #define NOMADCAP_FLAGS_VERBOSE 0x1
 #define NOMADCAP_FLAGS_ALLNET 0x2
 #define NOMADCAP_FLAGS_PROBES 0x4
-#define NOMADCAP_FLAGS_ANNOUNCE 0x8
-#define NOMADCAP_FLAGS_FILE 0x10
-#define NOMADCAP_FLAGS_ONE 0x20
+#define NOMADCAP_FLAGS_ANNOUNCE 0x10
+#define NOMADCAP_FLAGS_FILE 0x20
+#define NOMADCAP_FLAGS_ONE 0x40
+#define NOMADCAP_FLAGS_NETWORK 0x80
+#define NOMADCAP_FLAGS_NETMASK 0x100
 
 #ifdef USE_LIBCSV
-#define NOMADCAP_FLAGS_OUI 0x40
+#define NOMADCAP_FLAGS_OUI 0x200
 
 /* Initial OUI dynamic memory allocation */
 #define NOMADCAP_OUI_ENTRIES 4096
@@ -71,7 +73,7 @@ typedef struct nomadcap_pack {
   char *pname;
 
   /* Flags that control application logic */
-  uint8_t flags;
+  uint16_t flags;
 
 #ifdef USE_LIBCSV
   /* IEEE OUI data */
