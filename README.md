@@ -65,11 +65,11 @@ Usage: nomadcap [-i intf] [-n <network> -m <netmask>] [-f filename.pcap] [-d sec
 
 Run `nomadcap` with root privileges or through `sudo` to allow capturing of traffic.
 
+#### Exampe 1
+
 ```bash
 sudo build/nomadcap -v
 ```
-
-#### Exampe 1
 
 Capturing on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
 In this example `10.0.70.5` is the misconfigured host looking for the default gateway `10.0.70.1`.
@@ -94,11 +94,11 @@ Packets dropped: 0
 
 #### Example 2
 
-Another example using one match (1), OUI lookup (O) and verbose mode (v).
-
 ```bash
 sudo build/nomadcap -Ov -1
 ```
+
+Another example using single match (1), OUI lookup (O) and verbose mode (v).
 
 ```text
 Looking for interface...
