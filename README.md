@@ -17,7 +17,7 @@ sudo apt install build-essential libpcap0.8 libpcap-dev
 *Optional*. Compile with IEEE OUI CSV support. Install libcsv for parsing.
 
 ```bash
-sudo apt install libcsv3 libcsv3-dev
+sudo apt install libcsv3 libcsv3-dev ieee-data
 ```
 
 Clone this repository and run `make`. Results are in the directory `build/`.
@@ -65,7 +65,7 @@ Usage: nomadcap [-i intf] [-n <network> -m <netmask>] [-f filename.pcap] [-d sec
 
 Run `nomadcap` with root privileges or through `sudo` to allow capturing of traffic.
 
-#### Exampe 1
+#### Example 1
 
 ```bash
 sudo build/nomadcap -v

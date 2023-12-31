@@ -8,11 +8,6 @@
 /* Application defaults */
 #define NOMADCAP_DURATION 60
 
-/* IEEE OUI path & files */
-#define NOMADCAP_OUI_PATH "/usr/share/ieee-data/"
-#define NOMADCAP_OUI_FILE "oui.csv"
-#define NOMADCAP_OUI_FILEPATH NOMADCAP_OUI_PATH NOMADCAP_OUI_FILE
-
 /* PCAP stuff */
 /* Ethernet ARP broadcast requests */
 #define NOMADCAP_FILTER "arp"
@@ -46,6 +41,14 @@
 #ifdef USE_LIBCSV
 #define NOMADCAP_FLAGS_OUI 0x200
 
+/* IEEE OUI path & files */
+#define NOMADCAP_OUI_PATH "/usr/share/ieee-data/"
+#define NOMADCAP_OUI_FILE "oui.csv"
+#define NOMADCAP_OUI_FILEPATH NOMADCAP_OUI_PATH NOMADCAP_OUI_FILE
+
+/* OUI cache entry size */
+#define NOMADCAP_OUI_CSIZE 256
+
 /* Initial OUI dynamic memory allocation */
 #define NOMADCAP_OUI_ENTRIES 4096
 #endif /* USE_LIBCSV */
@@ -58,6 +61,7 @@ typedef struct nomadcap_oui {
   char *assignment;
   char *org_name;
   char *org_address;
+
   u_int32_t count;
 } nomadcap_oui_t;
 
@@ -78,6 +82,7 @@ typedef struct nomadcap_pack {
 #ifdef USE_LIBCSV
   /* IEEE OUI data */
   nomadcap_oui_t *oui_data;
+  nomadcap_oui_t *oui_cache[NOMADCAP_OUI_CSIZE];
 
   u_int32_t oui_num;
   u_int32_t oui_max;
@@ -114,6 +119,11 @@ typedef struct nomadcap_pack {
     fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__);                        \
     nomadcap_exit(pack, EXIT_FAILURE);                                         \
   } while (0)
+
+#define NOMADCAP_WARNING(pack, format, ...)                                    \
+  do {                                                                         \
+    fprintf(stderr, format  __VA_OPT__(, ) __VA_ARGS__);                       \
+  } while(0)
 
 #ifndef ETH_ALEN
 #define ETH_ALEN 6

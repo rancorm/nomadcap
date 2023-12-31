@@ -93,13 +93,22 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
 nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
                                     struct ether_arp *arp) {
   char oui[7], *assignment;
-  int index;
+  int index, cindex;
 
   /* Convert to char[] for string compare */
   snprintf(oui, sizeof(oui), "%02X%02X%02X", arp->arp_sha[0], arp->arp_sha[1],
            arp->arp_sha[2]);
 
   oui[6] = '\0';
+
+  /* Check OUI cache for a match */
+  for (cindex = 0; np->oui_cache[cindex]; cindex++) {
+    assignment = np->oui_cache[cindex]->assignment;
+
+    if (strncmp(oui, assignment, 6) == 0) {
+      return np->oui_cache[cindex];
+    }
+  }
 
   /* Loop through OUI entries looking for a match */
   for (index = 0; index < np->oui_num - 1; index++) {
@@ -108,6 +117,20 @@ nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
     /* Increment entry count and return the entry */
     if (strncmp(oui, assignment, 6) == 0) {
       np->oui_data[index].count++;
+
+      /* Find first empty cache slot */
+      cindex = 0;
+      while(np->oui_cache[cindex] && 
+        cindex < NOMADCAP_OUI_CSIZE) cindex++;
+
+      /* Better method to check count of OUI lookkups? */
+
+      /* Cache is full, replace random cache entry */
+      if (cindex == NOMADCAP_OUI_CSIZE)
+        cindex = rand() % 256;
+
+      /* Insert found OUI entry to cache */
+      np->oui_cache[cindex] = &np->oui_data[index];
 
       return &np->oui_data[index];
     }
@@ -341,6 +364,9 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 }
 
 nomadcap_pack_t *nomadcap_init(char *pname) {
+#ifdef USE_LIBCSV
+  int i;
+#endif /* USE_LIBCSV */
   nomadcap_pack_t *np;
 
   np = (nomadcap_pack_t *)malloc(sizeof(nomadcap_pack_t));
@@ -359,6 +385,11 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
 #ifdef USE_LIBCSV
     /* Initialize OUI data and state variables */
     np->oui_data = NULL;
+
+    /* Start with a clear cache */
+    for (i = 0; i < NOMADCAP_OUI_CSIZE; i++)
+      np->oui_cache[i] = NULL;
+    
     np->oui_num = 0;
     np->oui_index = 0;
     np->oui_max = NOMADCAP_OUI_ENTRIES;
@@ -479,6 +510,11 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
+
+  /* Warn if using file capture with device network and mask */
+  if (NOMADCAP_FLAG(np, FILE) &&
+    NOMADCAP_FLAG_NOT(np, NETWORK))
+      NOMADCAP_WARNING(np, "WARNING: Using -f (file) capture without -n (network) switch\n");
 
   /* Exit with message to use netmask switch */
   if (NOMADCAP_FLAG(np, NETWORK) && 
