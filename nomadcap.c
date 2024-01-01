@@ -309,20 +309,20 @@ void nomadcap_usage(nomadcap_pack_t *np) {
                   NOMADCAP_BANNER);
 
   NOMADCAP_STDOUT(
-      np, "Usage: %s [-i intf] [-n <network> -m <netmask>] [-f filename.pcap] [-d seconds] [-OApahvV1]\n\n",
+      np, "Usage: %s [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-OApahvV1]\n\n",
       np->pname);
-  NOMADCAP_STDOUT(np, "\t-i <intf>\t\tCapture on interface <intf>\n");
-  NOMADCAP_STDOUT(np, "\t-n <network>\t\tCapture network (e.g. 192.0.2.0)\n");
-  NOMADCAP_STDOUT(np, "\t-m <netmask>\t\tCapture network mask (e.g. 255.255.255.0)\n");
+  NOMADCAP_STDOUT(np, "\t-i intf\t\t\tCapture on specific interface\n");
+  NOMADCAP_STDOUT(np, "\t-n network\t\tCapture network (e.g. 192.0.2.0)\n");
+  NOMADCAP_STDOUT(np, "\t-m netmask\t\tCapture netmask (e.g. 255.255.255.0)\n");
   NOMADCAP_STDOUT(
-      np, "\t-f <filename.pcap>\tOffline capture using <filename.pcap>\n");
-  NOMADCAP_STDOUT(np, "\t-d <seconds>\t\tDuration of capture (seconds)\n");
+      np, "\t-f filename.pcap\tOffline capture using filename.pcap\n");
+  NOMADCAP_STDOUT(np, "\t-d seconds\t\tDuration of capture (seconds)\n");
 
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "\t-O\t\t\tMAC OUI to organization\n");
 #endif /* USE_LIBCSV */
 
-  NOMADCAP_STDOUT(np, "\t-A\t\t\tAll networks (includes local traffic)\n");
+  NOMADCAP_STDOUT(np, "\t-A\t\t\tAll networks (ARP request monitor)\n");
   NOMADCAP_STDOUT(np, "\t-p\t\t\tProcess ARP probes\n");
   NOMADCAP_STDOUT(np, "\t-a\t\t\tProcess ARP announcements\n");
   NOMADCAP_STDOUT(np, "\t-1\t\t\tExit after single match\n");

@@ -5,7 +5,18 @@ PCAP tool that aids in locating misconfigured network stacks.
 The tool's function is to identify and capture Address Resolution Protocol (ARP)
 requests that are not intended for the local network.
 
-## Build
+## Features
+
+- Live capture on specific interface (-i)
+- Offline capture from file (-f)
+- Network (-n) and netmask (-m) override
+- Run capture for a duration (-d)
+- Exit on single match (-1)
+- Process all networks (-A) as a basic request monitor
+- Process probes (-p) and announcements (-a)
+- Verbose mode (-v)
+
+## Get Started
 
 Install build essentials and PCAP library with headers.
 
@@ -45,14 +56,13 @@ build/nomadcap -h
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i intf] [-n <network> -m <netmask>] [-f filename.pcap] [-d seconds] [-OApahvV1]
+Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-OApahvV1]
 
-        -i <intf>               Capture on interface <intf>
-        -n <network>            Set capture <network> (e.g. 192.0.2.0)
-        -m <netmask>            Netmask for capture network (e.g. 255.255.255.0)
-        -f <filename.pcap>      Offline capture using <filename.pcap>
-        -d <seconds>            Duration of capture (seconds)
-        -O                      MAC OUI to organization
+        -i intf                 Capture on specific interface
+        -n network              Capture network (e.g. 192.0.2.0)
+        -m netmask              Capture netmask (e.g. 255.255.255.0)
+        -f filename.pcap        Offline capture using filename.pcap
+        -d seconds              Duration of capture (seconds)
         -A                      All networks (includes local traffic)
         -p                      Process ARP probes
         -a                      Process ARP announcements
@@ -98,7 +108,7 @@ Packets dropped: 0
 sudo build/nomadcap -Ov -1
 ```
 
-Another example using single match (1), OUI lookup (O) and verbose mode (v).
+Another example using Single Match (1), OUI Lookup (O) and Verbose Mode (v) features.
 
 ```text
 Looking for interface...
