@@ -10,6 +10,11 @@ CFLAGS=
 LDFLAGS=-lpcap
 OBJ=$(PROJECT_NAME).o
 
+# Paths to standard tools
+MKDIR=$(which mkdir)
+INSTALL=$(which install)
+RM=$(which rm)
+
 # Test for libcsv, if found link to it.
 LIBCSV_PROG="int main() { return 0; }"
 LIBCSV_TEST:=$(shell echo $(LIBCSV_PROG) > libcsv_test.c && $(CC) -o libcsv_test libcsv_test.c -lcsv 2> /dev/null && echo 1)
@@ -33,8 +38,11 @@ $(BUILD_DIR)$(PROJECT_NAME): $(BUILD_DIR)$(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 $(BUILD_DIR):
-	mkdir $@
+	$(MKDIR) $@
+
+install:
+	$(INSTALL) -D -m 755 $(BUILD_DIR)$(PROJECT_NAME) $(DESTDIR)/usr/sbin/$(PROJECT_NAME)
 
 clean:
-	rm -f $(BUILD_DIR)*.o
-	rm -f $(BUILD_DIR)$(PROJECT_NAME)
+	$(RM) -f $(BUILD_DIR)*.o
+	$(RM) -f $(BUILD_DIR)$(PROJECT_NAME)

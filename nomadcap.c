@@ -309,9 +309,15 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "%s v%s [%s]\n\n", np->pname, NOMADCAP_VERSION,
                   NOMADCAP_BANNER);
 
+  /* Command line options */
   NOMADCAP_STDOUT(
-      np, "Usage: %s [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-OApahvV1]\n\n",
+      np, "Usage: %s [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-",
       np->pname);
+#ifdef USE_LIBCSV
+  NOMADCAP_STDOUT(np, "O");
+#endif /* USE_LIBCSV */
+  NOMADCAP_STDOUT(np, "ApahvV1]\n\n");
+
   NOMADCAP_STDOUT(np, "\t-i intf\t\t\tCapture on specific interface\n");
   NOMADCAP_STDOUT(np, "\t-n network\t\tCapture network (e.g. 192.0.2.0)\n");
   NOMADCAP_STDOUT(np, "\t-m netmask\t\tCapture netmask (e.g. 255.255.255.0)\n");

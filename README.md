@@ -65,7 +65,7 @@ Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds
         -f filename.pcap        Offline capture using filename.pcap
         -d seconds              Duration of capture (seconds)
         -O                      MAC OUI to organization
-        -A                      All networks (includes local traffic)
+        -A                      All networks (ARP request monitor)
         -p                      Process ARP probes
         -a                      Process ARP announcements
         -1                      Exit after single match
