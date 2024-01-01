@@ -26,6 +26,7 @@
 
 /* getopt friends */
 extern char *optarg;
+extern int optopt;
 
 #include "nomadcap.h"
 
@@ -507,7 +508,7 @@ int main(int argc, char *argv[]) {
       nomadcap_usage(np);
       nomadcap_exit(np, EXIT_SUCCESS);
     default: /* '?' */
-      exit(EXIT_FAILURE);
+      NOMADCAP_WARNING(np, "Unknown switch -%c, check -h.\n", optopt);
     }
   }
 
