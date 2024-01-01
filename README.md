@@ -12,6 +12,7 @@ requests that are not intended for the local network.
 - Network (-n) and netmask (-m) override
 - Run capture for a duration (-d)
 - Exit on single match (-1)
+- MAC/OUI to organization look up using IEEE OUI data (-O) - *libcsv*
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Verbose mode (-v)
@@ -63,6 +64,7 @@ Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds
         -m netmask              Capture netmask (e.g. 255.255.255.0)
         -f filename.pcap        Offline capture using filename.pcap
         -d seconds              Duration of capture (seconds)
+        -O                      MAC OUI to organization
         -A                      All networks (includes local traffic)
         -p                      Process ARP probes
         -a                      Process ARP announcements
