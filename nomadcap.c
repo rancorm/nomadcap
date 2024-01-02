@@ -462,7 +462,7 @@ void nomadcap_printdevs(nomadcap_pack_t *np, char *errbuf) {
   if (devs == NULL)
     NOMADCAP_FAILURE(np, "No interfaces found\n");
 
-  /* Output devices */
+  /* Loop through devices */
   for (dev = &devs[0]; dev != NULL; dev = dev->next) {
     /* Look up device network and mask */
     if (pcap_lookupnet(dev->name, &net, &mask, errbuf) == -1)
@@ -505,53 +505,53 @@ int main(int argc, char *argv[]) {
   while ((c = getopt(argc, argv, NOMADCAP_OPTS)) != -1) {
     switch (c) {
 #ifdef USE_LIBCSV
-    case 'O':
+    case 'O': /* OUI look up */
       np->flags |= NOMADCAP_FLAGS_OUI;
       break;
 #endif /* USE_LIBCSV */
-    case 'A':
+    case 'A': /* All networks (request monitor) */
       np->flags |= NOMADCAP_FLAGS_ALLNET;
       break;
-    case 'p':
+    case 'p': /* Process ARP probes */
       np->flags |= NOMADCAP_FLAGS_PROBES;
       break;
-    case 'a':
+    case 'a': /* Process ARP announcements */
       np->flags |= NOMADCAP_FLAGS_ANNOUNCE;
       break;
-    case 'i':
+    case 'i': /* Capture interface/device */
       np->device = strdup(optarg);
       break;
-    case 'n':
+    case 'n': /* Capture network */
       np->flags |= NOMADCAP_FLAGS_NETWORK;
       np->localnet = nomadcap_addr2uint(np, optarg);
       break;
-    case 'm':
+    case 'm': /* Capture netmask */
       np->flags |= NOMADCAP_FLAGS_NETMASK;
       np->netmask = nomadcap_addr2uint(np, optarg);
       break;
-    case 'f':
+    case 'f': /* Offline capture file */
       np->flags |= NOMADCAP_FLAGS_FILE;
       np->filename = strdup(optarg);
       break;
-    case 'd':
+    case 'd': /* Capture duration */
       /* User supplied duration or default */
       np->duration = optarg ? atoi(optarg) : NOMADCAP_DURATION;
       break;
-    case 'v':
+    case 'v': /* Verbose */
       np->flags |= NOMADCAP_FLAGS_VERBOSE;
       break;
-    case '1':
+    case '1': /* Single match */
       np->flags |= NOMADCAP_FLAGS_ONE;
       break;
-    case 'L':
+    case 'L': /* List interfaces */
       nomadcap_printdevs(np, errbuf);
       NOMADCAP_SUCCESS(np);
-    case 'V':
+    case 'V': /* Version */
       NOMADCAP_STDOUT(np, "%s\n", NOMADCAP_VERSION);
-      nomadcap_exit(np, EXIT_SUCCESS);
-    case 'h':
+      NOMADCAP_SUCCESS(np);
+    case 'h': /* Help screen */
       nomadcap_usage(np);
-      nomadcap_exit(np, EXIT_SUCCESS);
+      NOMADCAP_SUCCESS(np);
     default: /* '?' */
       NOMADCAP_WARNING(np, "Unknown switch -%c, check -h.\n", optopt);
     }
