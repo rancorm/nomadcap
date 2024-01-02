@@ -58,21 +58,21 @@ build/nomadcap -h
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-OApa1LvV]
+Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OApa1LvV]
 
-        -i intf                 Capture on specific interface
-        -n network              Capture network (e.g. 192.0.2.0)
-        -m netmask              Capture netmask (e.g. 255.255.255.0)
-        -f filename.pcap        Offline capture using filename.pcap
-        -d seconds              Duration of capture (seconds)
-        -O                      MAC OUI to organization
-        -A                      All networks (ARP request monitor)
-        -p                      Process ARP probes
-        -a                      Process ARP announcements
-        -1                      Exit after single match
-        -L                      List available interfaces
-        -v                      Verbose mode
-        -V                      Version
+        -i INTF         Capture on specific interface
+        -n NETWORK      Capture network (e.g. 192.0.2.0)
+        -m NETMASK      Capture netmask (e.g. 255.255.255.0)
+        -f FILE.PCAP    Offline capture using filename.pcap
+        -d SECONDS      Duration of capture (seconds)
+        -O              MAC OUI to organization
+        -A              All networks (ARP request monitor)
+        -p              Process ARP probes
+        -a              Process ARP announcements
+        -1              Exit after single match
+        -L              List available interfaces
+        -v              Verbose mode
+        -V              Version
 ```
 
 ### Capture
@@ -134,7 +134,7 @@ Packets received: 10
 Packets dropped: 0
 ```
 
-### Example 3
+#### Example 3
 
 ```bash
 build/nomadcap -Ov -f nomad.pcapng
