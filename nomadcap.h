@@ -13,7 +13,7 @@
 #define NOMADCAP_FILTER "arp"
 #define NOMADCAP_SNAPLEN 64
 #define NOMADCAP_TIMEOUT 500
-#define NOMADCAP_PROMISC 1
+#define NOMADCAP_PROMISC 0 
 
 /* IP address for all zeros */
 #define NOMADCAP_NONE "\x00\x00\x00\x00"
@@ -107,7 +107,7 @@ typedef struct nomadcap_pack {
     printf(format __VA_OPT__(, ) __VA_ARGS__);                                 \
   } while (0)
 
-#define NOMADCAP_STDOUT_V(pack, format, ...)                                                                   \
+#define NOMADCAP_STDOUT_V(pack, format, ...)                                   \
   do {                                                                         \
     if (NOMADCAP_FLAG(pack, VERBOSE)) {                                        \
       printf(format __VA_OPT__(, ) __VA_ARGS__);                               \

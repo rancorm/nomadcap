@@ -5,7 +5,7 @@ PROJECT_NAME:=nomadcap
 BUILD_DIR:=build/
 
 # Compiler stuff
-CC:=gcc
+CC:=$(shell which gcc)
 CFLAGS=
 LDFLAGS=-lpcap
 OBJ=$(PROJECT_NAME).o

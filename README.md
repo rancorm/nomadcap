@@ -77,12 +77,12 @@ Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds
 
 ### Capture
 
-Run `nomadcap` with root privileges or through `sudo` to allow capturing of traffic.
+Run `nomadcap` to start capturing traffic.
 
 #### Example 1
 
 ```bash
-sudo build/nomadcap -v
+build/nomadcap -v
 ```
 
 Capturing on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
@@ -109,7 +109,7 @@ Packets dropped: 0
 #### Example 2
 
 ```bash
-sudo build/nomadcap -Ov -1
+build/nomadcap -Ov -1
 ```
 
 Another example using Single Match (1), OUI Lookup (O) and Verbose Mode (v) features.

@@ -311,31 +311,31 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 
   /* Command line options */
   NOMADCAP_STDOUT(
-      np, "Usage: %s [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-",
+      np, "Usage: %s [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-",
       np->pname);
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "O");
 #endif /* USE_LIBCSV */
   NOMADCAP_STDOUT(np, "Apa1LvV]\n\n");
 
-  NOMADCAP_STDOUT(np, "\t-i intf\t\t\tCapture on specific interface\n");
-  NOMADCAP_STDOUT(np, "\t-n network\t\tCapture network (e.g. 192.0.2.0)\n");
-  NOMADCAP_STDOUT(np, "\t-m netmask\t\tCapture netmask (e.g. 255.255.255.0)\n");
+  NOMADCAP_STDOUT(np, "\t-i INTF\t\tCapture on specific interface\n");
+  NOMADCAP_STDOUT(np, "\t-n NETWORK\tCapture network (e.g. 192.0.2.0)\n");
+  NOMADCAP_STDOUT(np, "\t-m NETMASK\tCapture netmask (e.g. 255.255.255.0)\n");
   NOMADCAP_STDOUT(
-      np, "\t-f filename.pcap\tOffline capture using filename.pcap\n");
-  NOMADCAP_STDOUT(np, "\t-d seconds\t\tDuration of capture (seconds)\n");
+      np, "\t-f FILE.PCAP\tOffline capture using filename.pcap\n");
+  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (seconds)\n");
 
 #ifdef USE_LIBCSV
-  NOMADCAP_STDOUT(np, "\t-O\t\t\tMAC OUI to organization\n");
+  NOMADCAP_STDOUT(np, "\t-O\t\tMAC OUI to organization\n");
 #endif /* USE_LIBCSV */
 
-  NOMADCAP_STDOUT(np, "\t-A\t\t\tAll networks (ARP request monitor)\n");
-  NOMADCAP_STDOUT(np, "\t-p\t\t\tProcess ARP probes\n");
-  NOMADCAP_STDOUT(np, "\t-a\t\t\tProcess ARP announcements\n");
-  NOMADCAP_STDOUT(np, "\t-1\t\t\tExit after single match\n");
-  NOMADCAP_STDOUT(np, "\t-L\t\t\tList available interfaces\n");
-  NOMADCAP_STDOUT(np, "\t-v\t\t\tVerbose mode\n");
-  NOMADCAP_STDOUT(np, "\t-V\t\t\tVersion\n");
+  NOMADCAP_STDOUT(np, "\t-A\t\tAll networks (ARP request monitor)\n");
+  NOMADCAP_STDOUT(np, "\t-p\t\tProcess ARP probes\n");
+  NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
+  NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
+  NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
+  NOMADCAP_STDOUT(np, "\t-v\t\tVerbose mode\n");
+  NOMADCAP_STDOUT(np, "\t-V\t\tVersion\n");
 
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
