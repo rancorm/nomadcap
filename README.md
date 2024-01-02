@@ -15,6 +15,7 @@ requests that are not intended for the local network.
 - MAC/OUI to organization look up using IEEE OUI data (-O) - *libcsv*
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
+- Quick list of intefaces with details (-L)
 - Verbose mode (-v)
 
 ## Get Started
@@ -57,7 +58,7 @@ build/nomadcap -h
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-OApahvV1]
+Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds] [-OApa1LvV]
 
         -i intf                 Capture on specific interface
         -n network              Capture network (e.g. 192.0.2.0)
@@ -69,6 +70,7 @@ Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds
         -p                      Process ARP probes
         -a                      Process ARP announcements
         -1                      Exit after single match
+        -L                      List available interfaces
         -v                      Verbose mode
         -V                      Version
 ```
