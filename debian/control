@@ -16,6 +16,6 @@ Depends: ${shlibs:Depends},
     ${misc:Depends},
     libpcap,
     libcsv
-Description: PCAP tool for identifying mis-configured network stacks
- Nomadcap is a PCAP based tool for identifying mis-configured network stacks
- from live capture or offline capture files. 
+Description: PCAP tool that aids in locating misconfigured network stacks 
+ Nomadcap is a PCAP based tool that aids in identifying mis-configured network
+ stacks from live capture or offline files.
