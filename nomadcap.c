@@ -316,7 +316,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "O");
 #endif /* USE_LIBCSV */
-  NOMADCAP_STDOUT(np, "ApahvV1]\n\n");
+  NOMADCAP_STDOUT(np, "Apa1LvV]\n\n");
 
   NOMADCAP_STDOUT(np, "\t-i intf\t\t\tCapture on specific interface\n");
   NOMADCAP_STDOUT(np, "\t-n network\t\tCapture network (e.g. 192.0.2.0)\n");
@@ -333,6 +333,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-p\t\t\tProcess ARP probes\n");
   NOMADCAP_STDOUT(np, "\t-a\t\t\tProcess ARP announcements\n");
   NOMADCAP_STDOUT(np, "\t-1\t\t\tExit after single match\n");
+  NOMADCAP_STDOUT(np, "\t-L\t\t\tList available interfaces\n");
   NOMADCAP_STDOUT(np, "\t-v\t\t\tVerbose mode\n");
   NOMADCAP_STDOUT(np, "\t-V\t\t\tVersion\n");
 
@@ -447,6 +448,41 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
   return 0;
 }
 
+void nomadcap_printdevs(nomadcap_pack_t *np, char *errbuf) {
+  pcap_if_t *devs, *dev;
+  bpf_u_int32 net, mask;
+  char net_s[INET_ADDRSTRLEN];
+  char mask_s[INET_ADDRSTRLEN];
+
+  /* Find all available network interfaces */
+  if (pcap_findalldevs(&devs, errbuf) == -1)
+    NOMADCAP_FAILURE(np, "pcap_findalldevs: %s\n", errbuf);
+
+  /* No interfaces, print an error message and exit */
+  if (devs == NULL)
+    NOMADCAP_FAILURE(np, "No interfaces found\n");
+
+  /* Output devices */
+  for (dev = &devs[0]; dev != NULL; dev = dev->next) {
+    /* Look up device network and mask */
+    if (pcap_lookupnet(dev->name, &net, &mask, errbuf) == -1)
+      NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
+
+    /* Output device if network settings found */
+    if (net != 0) {
+      /* Convert network and mask to human readable strings */
+      inet_ntop(AF_INET, &net, net_s, sizeof(net_s));
+      inet_ntop(AF_INET, &mask, mask_s, sizeof(mask_s));
+
+      /* Output device details */
+      NOMADCAP_STDOUT(np, "%s\t%s\t%s\n", dev->name, net_s, mask_s);
+    }
+  }
+
+  /* Free the list of interfaces */
+  pcap_freealldevs(devs);
+}
+
 int main(int argc, char *argv[]) {
   nomadcap_pack_t *np;
   struct pcap_stat ps;
@@ -507,6 +543,9 @@ int main(int argc, char *argv[]) {
     case '1':
       np->flags |= NOMADCAP_FLAGS_ONE;
       break;
+    case 'L':
+      nomadcap_printdevs(np, errbuf);
+      NOMADCAP_SUCCESS(np);
     case 'V':
       NOMADCAP_STDOUT(np, "%s\n", NOMADCAP_VERSION);
       nomadcap_exit(np, EXIT_SUCCESS);

@@ -23,7 +23,7 @@
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff"
 
 /* Application specific */
-#define NOMADCAP_OPTS "OApai:n:m:f:d:hvV1"
+#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -118,6 +118,11 @@ typedef struct nomadcap_pack {
   do {                                                                         \
     fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__);                        \
     nomadcap_exit(pack, EXIT_FAILURE);                                         \
+  } while (0)
+
+#define NOMADCAP_SUCCESS(pack)                                                 \
+  do {                                                                         \
+    nomadcap_exit(pack, EXIT_SUCCESS);                                         \
   } while (0)
 
 #define NOMADCAP_WARNING(pack, format, ...)                                    \
