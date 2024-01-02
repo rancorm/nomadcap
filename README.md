@@ -77,12 +77,12 @@ Usage: nomadcap [-i intf] [-n network -m netmask] [-f filename.pcap] [-d seconds
 
 ### Capture
 
-Run `nomadcap` to start capturing traffic.
+Run `nomadcap` under sudo, root, or group with permission to perform live capture.
 
 #### Example 1
 
 ```bash
-build/nomadcap -v
+sudo build/nomadcap -v
 ```
 
 Capturing on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
@@ -109,7 +109,7 @@ Packets dropped: 0
 #### Example 2
 
 ```bash
-build/nomadcap -Ov -1
+sudo build/nomadcap -Ov -1
 ```
 
 Another example using Single Match (1), OUI Lookup (O) and Verbose Mode (v) features.
@@ -132,4 +132,45 @@ Local traffic, ignoring...
 
 Packets received: 10
 Packets dropped: 0
+```
+
+### Example 3
+
+```bash
+build/nomadcap -Ov -f nomad.pcapng
+```
+
+Read from offline file `nomad.pcapng` in Verbose mode (-v) with OUI look ups (-O).
+
+Note, the warning about using -f without -n, in this example capture came from same network
+as interface, otherwise we would have used -n and -m switch respectfully.
+
+Also note, it's run with standard user privileges.
+
+```text
+WARNING: Using -f (file) capture without -n (network) switch
+Looking for interface...
+Found interface: wlo1
+Flags: 0x00000221
+Loading OUI data from /usr/share/ieee-data/oui.csv...
+Loaded 32531 OUIs
+Loading capture file: nomad.pcapng
+Listening on: wlo1
+Local network: 192.168.2.0
+Network mask: 255.255.255.0
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+Local traffic, ignoring...
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
+Reached end of capture file: nomad.pcapng
 ```
