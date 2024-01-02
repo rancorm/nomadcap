@@ -5,15 +5,15 @@ PROJECT_NAME:=nomadcap
 BUILD_DIR:=build/
 
 # Compiler stuff
-CC=gcc
+CC:=gcc
 CFLAGS=
 LDFLAGS=-lpcap
 OBJ=$(PROJECT_NAME).o
 
 # Paths to standard tools
-MKDIR=$(which mkdir)
-INSTALL=$(which install)
-RM=$(which rm)
+MKDIR=$(shell which mkdir)
+INSTALL=$(shell which install)
+RM=$(shell which rm)
 
 # Test for libcsv, if found link to it.
 LIBCSV_PROG="int main() { return 0; }"
@@ -36,6 +36,9 @@ $(BUILD_DIR)%.o: %.c %.h $(BUILD_DIR)
 
 $(BUILD_DIR)$(PROJECT_NAME): $(BUILD_DIR)$(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
+
+$(BUILD_DIR)$(PROJECT_NAME)-win32: $(BUILD_DIR)$(OBJ)
+	$(CC) $@ $^ $(CFLAGS) $(LDFLAGS)
 
 $(BUILD_DIR):
 	$(MKDIR) $@

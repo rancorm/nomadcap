@@ -1,10 +1,13 @@
 #
 # nomadcap .gitignore
 #
-# Visual Studio Code project settings
+# Binaries
+nomadcap
+
+# Visual Studio Code settings
 .vscode/
 
-# Project build directory
+# Build directory
 build/
 
 # Object files
