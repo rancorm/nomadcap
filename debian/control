@@ -3,15 +3,16 @@ Section: utils
 Priority: optional
 Maintainer: Jonathan Cormier <jonathan@cormier.co>
 Build-Depends: debhelper (>= 12),
-    debhelper-compat (= 13)
+    debhelper-compat (= 13),
+    libpcap-dev,
+    libcsv-dev
 Standards-Version: 4.6.1
+Vcs-Browser: https://github.com/jcormir/nomadcap
+Vcs-Git: https://github.com/jcormir/nomadcap.git
 
 Package: nomadcap
 Architecture: amd64
-Depends: ${shlibs:Depends},
-    ${misc:Depends},
-    libpcap0.8,
-    libcsv1
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: PCAP tool for identifying mis-configured network stacks
- Nomadcap is a PCAP based tool for identifying msi-configured network stacks
+ Nomadcap is a PCAP based tool for identifying mis-configured network stacks
  from live capture or offline capture files. 
