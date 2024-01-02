@@ -44,7 +44,7 @@ $(BUILD_DIR):
 	$(MKDIR) $@
 
 install:
-	$(INSTALL) -D -m 755 $(BUILD_DIR)$(PROJECT_NAME) $(DESTDIR)/usr/sbin/$(PROJECT_NAME)
+	$(INSTALL) -s -D -m 755 $(BUILD_DIR)$(PROJECT_NAME) $(DESTDIR)/usr/bin/$(PROJECT_NAME)
 
 clean:
 	$(RM) -f $(BUILD_DIR)*.o
