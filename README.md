@@ -16,6 +16,7 @@ requests that are not intended for the local network.
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
+- JSON output (-j)
 - Verbose mode (-v)
 
 ## Get Started
@@ -27,10 +28,16 @@ sudo apt update
 sudo apt install build-essential libpcap0.8 libpcap-dev
 ```
 
-*Optional*. Compile with IEEE OUI CSV support. Install libcsv for parsing.
+*Optional*. Compile with IEEE OUI support. Install libcsv for parsing.
 
 ```bash
 sudo apt install libcsv3 libcsv-dev ieee-data
+```
+
+*Optional*. Compile with JSON support. Install libjansson for JSON output.
+
+```bash
+sudo apt install libjansson4 libjansson-dev
 ```
 
 Clone this repository and run `make`. Results are in the directory `build/`.
@@ -58,7 +65,7 @@ build/nomadcap -h
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OApa1LvV]
+Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OjApa1LvV]
 
         -i INTF         Capture on specific interface
         -n NETWORK      Capture network (e.g. 192.0.2.0)
@@ -71,6 +78,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -a              Process ARP announcements
         -1              Exit after single match
         -L              List available interfaces
+        -j              JSON output
         -v              Verbose mode
         -V              Version
 ```
