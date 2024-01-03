@@ -230,12 +230,9 @@ int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
   /* Function _cb1 handles fields, cb2 handles row end */
   while ((nbytes = fread(buf, 1, sizeof(buf), fp)) > 0)
     if (csv_parse(&cp, buf, nbytes, nomadcap_oui_cb1, nomadcap_oui_cb2, np) !=
-        nbytes) {
-      fprintf(stderr, "Error parsing OUI data file: %s\n",
-
-              csv_strerror(csv_error(&cp)));
-      exit(EXIT_FAILURE);
-    }
+        nbytes)
+        NOMADCAP_FAILURE(np, "Error parsing OUI data file: %s\n",
+          csv_strerror(csv_error(&cp)));
 
   /* Clean up parser resources, close file */
   csv_fini(&cp, nomadcap_oui_cb1, nomadcap_oui_cb2, 0);
@@ -266,13 +263,13 @@ int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
 void nomadcap_cleanup(int signo) {
   loop = 0;
 
-  fprintf(stderr, "Interrupt signal caught...\n");
+  fprintf(stderr, "Interrupt signal\n");
 }
 
 void nomadcap_alarm(int signo) {
   loop = 0;
 
-  fprintf(stderr, "Duration alarm caught...\n");
+  fprintf(stderr, "Duration alarm\n");
 }
 
 int nomadcap_signal(int signo, void (*handler)()) {
@@ -289,18 +286,18 @@ int nomadcap_signal(int signo, void (*handler)()) {
   }
 }
 
-void nomadcap_aprint(uint8_t *addr, int size, char sep, int hex) {
+void nomadcap_aprint(nomadcap_pack_t *np, uint8_t *addr, int size, char sep, int hex) {
   for (int i = 0; i < size; i++) {
     /* Output in hex or decimal */
     if (hex) {
-      printf("%02x", addr[i]);
+      NOMADCAP_STDOUT(np, "%02x", addr[i]);
     } else {
-      printf("%d", addr[i]);
+      NOMADCAP_STDOUT(np, "%d", addr[i]);
     }
 
     /* Output seperator */
     if (i < size - 1)
-      printf("%c", sep);
+      NOMADCAP_STDOUT(np, "%c", sep);
   }
 }
 
@@ -322,8 +319,8 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-n NETWORK\tCapture network (e.g. 192.0.2.0)\n");
   NOMADCAP_STDOUT(np, "\t-m NETMASK\tCapture netmask (e.g. 255.255.255.0)\n");
   NOMADCAP_STDOUT(
-      np, "\t-f FILE.PCAP\tOffline capture using filename.pcap\n");
-  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (seconds)\n");
+      np, "\t-f FILE.PCAP\tOffline capture using FILE.PCAP\n");
+  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (default: %d)\n", NOMADCAP_DURATION);
 
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "\t-O\t\tMAC OUI to organization\n");
@@ -347,11 +344,11 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 #endif /* USE_LIBCSV */
 
   /* Sender IP */
-  nomadcap_aprint(arp->arp_spa, 4, '.', 0);
+  nomadcap_aprint(np, arp->arp_spa, 4, '.', 0);
 
   /* Sender MAC */
-  printf(" [");
-  nomadcap_aprint(arp->arp_sha, ETH_ALEN, ':', 1);
+  NOMADCAP_STDOUT(np, " [");
+  nomadcap_aprint(np, arp->arp_sha, ETH_ALEN, ':', 1);
 
 #ifdef USE_LIBCSV
   /* Output OUI org. details */
@@ -359,16 +356,16 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
     oui_entry = nomadcap_oui_lookup(np, arp);
 
     if (oui_entry)
-      NOMADCAP_STDOUT_V(np, " - %s", oui_entry->org_name);
+      NOMADCAP_STDOUT(np, " - %s", oui_entry->org_name);
   }
 #endif /* USE_LIBCSV */
 
-  printf("] is looking for ");
+  NOMADCAP_STDOUT(np, "] is looking for ");
 
   /* Target IP */
-  nomadcap_aprint(arp->arp_tpa, 4, '.', 0);
+  nomadcap_aprint(np, arp->arp_tpa, 4, '.', 0);
 
-  printf("\n");
+  NOMADCAP_STDOUT(np, "\n");
 }
 
 nomadcap_pack_t *nomadcap_init(char *pname) {

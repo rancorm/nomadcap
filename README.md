@@ -63,7 +63,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -i INTF         Capture on specific interface
         -n NETWORK      Capture network (e.g. 192.0.2.0)
         -m NETMASK      Capture netmask (e.g. 255.255.255.0)
-        -f FILE.PCAP    Offline capture using filename.pcap
+        -f FILE.PCAP    Offline capture using FILE.PCAP
         -d SECONDS      Duration of capture (seconds)
         -O              MAC OUI to organization
         -A              All networks (ARP request monitor)
@@ -112,7 +112,7 @@ Packets dropped: 0
 sudo build/nomadcap -Ov -1
 ```
 
-Another example using Single Match (1), OUI Lookup (O) and Verbose Mode (v) features.
+Another example using Single match (1), OUI look up (O) and Verbose mode (v) features.
 
 ```text
 Looking for interface...
@@ -140,7 +140,7 @@ Packets dropped: 0
 build/nomadcap -Ov -f nomad.pcapng
 ```
 
-Read from offline file `nomad.pcapng` in Verbose mode (-v) with OUI look ups (-O).
+Read from offline file `nomad.pcapng` in Verbose mode (-v) with OUI look up (-O).
 
 Note, the warning about using -f without -n, in this example capture came from same network
 as interface, otherwise we would have used -n and -m switch respectfully.
