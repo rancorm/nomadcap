@@ -24,6 +24,10 @@
 #include <csv.h>
 #endif /* USE_LIBCSV */
 
+#ifdef USE_LIBJANSSON
+#include <jansson.h>
+#endif /* USE_LIBJANSSON */
+
 /* getopt friends */
 extern char *optarg;
 extern int optopt;
@@ -311,6 +315,11 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "O");
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+  NOMADCAP_STDOUT(np, "j");
+#endif /* USE_LIBJANSSON */
+
   NOMADCAP_STDOUT(np, "Apa1LvV]\n\n");
 
   NOMADCAP_STDOUT(np, "\t-i INTF\t\tCapture on specific interface\n");
@@ -324,13 +333,18 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-O\t\tMAC OUI to organization\n");
 #endif /* USE_LIBCSV */
 
-  NOMADCAP_STDOUT(np, "\t-A\t\tAll networks (ARP request monitor)\n");
-  NOMADCAP_STDOUT(np, "\t-p\t\tProcess ARP probes\n");
-  NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
-  NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
-  NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
-  NOMADCAP_STDOUT(np, "\t-v\t\tVerbose mode\n");
-  NOMADCAP_STDOUT(np, "\t-V\t\tVersion\n");
+  NOMADCAP_STDOUT(np, "\t-A\t\t\tAll networks (ARP request monitor)\n");
+  NOMADCAP_STDOUT(np, "\t-p\t\t\tProcess ARP probes\n");
+  NOMADCAP_STDOUT(np, "\t-a\t\t\tProcess ARP announcements\n");
+  NOMADCAP_STDOUT(np, "\t-1\t\t\tExit after single match\n");
+  NOMADCAP_STDOUT(np, "\t-L\t\t\tList available interfaces\n");
+
+#ifdef USE_LIBJANSSON
+  NOMADCAP_STDOUT(np, "\t-j\t\t\tJSON output\n");
+#endif /* USE_LIBJANSSON */
+
+  NOMADCAP_STDOUT(np, "\t-v\t\t\tVerbose mode\n");
+  NOMADCAP_STDOUT(np, "\t-V\t\t\tVersion\n");
 
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
@@ -538,6 +552,11 @@ int main(int argc, char *argv[]) {
     case '1': /* Single match */
       np->flags |= NOMADCAP_FLAGS_ONE;
       break;
+#ifdef USE_LIBJANSSON
+    case 'j':
+      np->flags |= NOMADCAP_FLAGS_JSON;
+      break;
+#endif /* USE_LIBJANSSON */
     case 'L': /* List interfaces */
       nomadcap_printdevs(np, errbuf);
       NOMADCAP_SUCCESS(np);

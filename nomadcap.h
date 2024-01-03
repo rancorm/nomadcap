@@ -23,7 +23,7 @@
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff"
 
 /* Application specific */
-#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1"
+#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1j"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -52,6 +52,10 @@
 /* Initial OUI dynamic memory allocation */
 #define NOMADCAP_OUI_ENTRIES 4096
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+#define NOMADCAP_FLAGS_JSON 0x400
+#endif /* USE_LIBJANSSON */
 
 #define NOMADCAP_VERSION "0.1"
 
