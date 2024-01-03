@@ -14,8 +14,8 @@ Package: nomadcap
 Architecture: amd64
 Depends: ${shlibs:Depends},
     ${misc:Depends},
-    libpcap,
-    libcsv,
+    libpcap0.8,
+    libcsv3,
     ieee-data
 Description: PCAP tool that aids in locating misconfigured network stacks 
  Nomadcap is a PCAP based tool that aids in identifying mis-configured network
