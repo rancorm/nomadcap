@@ -268,8 +268,6 @@ void nomadcap_cleanup(int signo) {
 
 void nomadcap_alarm(int signo) {
   loop = 0;
-
-  fprintf(stderr, "Duration alarm\n");
 }
 
 int nomadcap_signal(int signo, void (*handler)()) {

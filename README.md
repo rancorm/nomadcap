@@ -64,7 +64,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -n NETWORK      Capture network (e.g. 192.0.2.0)
         -m NETMASK      Capture netmask (e.g. 255.255.255.0)
         -f FILE.PCAP    Offline capture using FILE.PCAP
-        -d SECONDS      Duration of capture (seconds)
+        -d SECONDS      Duration of capture (default: 60)
         -O              MAC OUI to organization
         -A              All networks (ARP request monitor)
         -p              Process ARP probes
@@ -99,7 +99,7 @@ Network mask: 255.255.255.0
 ARP announcement, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
-^CInterrupt signal caught...
+^CInterrupt signal
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 
 Packets received: 5
