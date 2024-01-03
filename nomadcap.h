@@ -93,6 +93,10 @@ typedef struct nomadcap_pack {
   u_int32_t oui_index;
 #endif /* USE_LIBCSV */
 
+#ifdef USE_LIBJANSSON
+  json_t *json;
+#endif /* USE_LIBJANSSON */
+
   /* PCAP */
   pcap_t *p;
   struct pcap_pkthdr ph;

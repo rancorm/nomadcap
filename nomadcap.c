@@ -333,18 +333,18 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-O\t\tMAC OUI to organization\n");
 #endif /* USE_LIBCSV */
 
-  NOMADCAP_STDOUT(np, "\t-A\t\t\tAll networks (ARP request monitor)\n");
-  NOMADCAP_STDOUT(np, "\t-p\t\t\tProcess ARP probes\n");
-  NOMADCAP_STDOUT(np, "\t-a\t\t\tProcess ARP announcements\n");
-  NOMADCAP_STDOUT(np, "\t-1\t\t\tExit after single match\n");
-  NOMADCAP_STDOUT(np, "\t-L\t\t\tList available interfaces\n");
+  NOMADCAP_STDOUT(np, "\t-A\t\tAll networks (ARP request monitor)\n");
+  NOMADCAP_STDOUT(np, "\t-p\t\tProcess ARP probes\n");
+  NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
+  NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
+  NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
 
 #ifdef USE_LIBJANSSON
-  NOMADCAP_STDOUT(np, "\t-j\t\t\tJSON output\n");
+  NOMADCAP_STDOUT(np, "\t-j\t\tJSON output\n");
 #endif /* USE_LIBJANSSON */
 
-  NOMADCAP_STDOUT(np, "\t-v\t\t\tVerbose mode\n");
-  NOMADCAP_STDOUT(np, "\t-V\t\t\tVersion\n");
+  NOMADCAP_STDOUT(np, "\t-v\t\tVerbose mode\n");
+  NOMADCAP_STDOUT(np, "\t-V\t\tVersion\n");
 
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
@@ -411,6 +411,11 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     np->oui_index = 0;
     np->oui_max = NOMADCAP_OUI_ENTRIES;
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+    /* Initialize JSON object */
+    np->json = NULL;
+#endif /* USE_LIBJANSSON */
 
     /* Save program name */
     np->pname = basename(pname);
