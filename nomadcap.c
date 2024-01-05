@@ -257,8 +257,11 @@ int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
 void nomadcap_json_print(nomadcap_pack_t *np) {
   char *json_string = json_dumps(np->json, JSON_INDENT(2));
 
-  printf(json_string);
-  free(json_string);
+  /* Output and free */
+  if (json_string) {
+    printf("%s", json_string);
+    free(json_string);
+  }
 }
 #endif /* USE_LIBJANSSON */
 
@@ -716,7 +719,7 @@ int main(int argc, char *argv[]) {
         json_object_set_new(stats, "pkts_drop", json_integer(ps.ps_drop));
 
         /* Add statistics JSON object to root JSON object */
-        NOMADCAP_JSON_PACK_V(np, "stats", stats);
+        NOMADCAP_JSON_PACK(np, "stats", stats);
       }
 #endif /* USE_LIBJANSSON */
     }
