@@ -16,7 +16,7 @@ requests that are not intended for the local network.
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
-- JSON output (-j)
+- JSON output (-j) - *libjansson*
 - Verbose mode (-v)
 
 ## Get Started

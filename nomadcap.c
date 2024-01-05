@@ -82,6 +82,11 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
     }
 #endif /* USE_LIBCSV */
 
+#ifdef USE_LIBJANSSON
+    if (np->json)
+      json_decref(np->json);
+#endif /* USE_LIBJANSSON*/
+
     /* Close capture device */
     if (np->p)
       pcap_close(np->p);
@@ -247,6 +252,15 @@ int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
   return 1;
 }
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+void nomadcap_json_print(nomadcap_pack_t *np) {
+  char *json_string = json_dumps(np->json, JSON_INDENT(2));
+
+  printf(json_string);
+  free(json_string);
+}
+#endif /* USE_LIBJANSSON */
 
 int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
   bpf_u_int32 netmask_hbo, localnet_hbo;
@@ -506,6 +520,10 @@ int main(int argc, char *argv[]) {
   uint8_t *pkt;
   int c = -1, is_local = -1;
 
+#ifdef USE_LIBJANSSON
+  json_t *stats;
+#endif /* USE_LIBJANSSON */
+
   /* Init */
   np = nomadcap_init(argv[0]);
 
@@ -576,6 +594,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
+#ifdef USE_LIBJANSSON
+  /* Initialize JSON object */
+  if (NOMADCAP_FLAG(np, JSON))
+    np->json = json_object();
+#endif /* USE_LIBJANSSON */
+
   /* Warn if using file capture with device network and mask */
   if (NOMADCAP_FLAG(np, FILE) &&
     NOMADCAP_FLAG_NOT(np, NETWORK))
@@ -592,8 +616,15 @@ int main(int argc, char *argv[]) {
 
   NOMADCAP_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
 
+#ifdef USE_LIBJANSSON
+  /* Add flags to JSON object */
+  if (NOMADCAP_FLAG(np, JSON))
+    NOMADCAP_JSON_PACK_V(np, "flags", json_integer(np->flags));
+#endif /* USE_LIBJANSSON */
+
   /* Load IEEE OUI data */
 #ifdef USE_LIBCSV
+  /* Load OUIs from IEEE CSV file */
   if (NOMADCAP_FLAG(np, OUI)) {
     NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n",
                       NOMADCAP_OUI_FILEPATH);
@@ -601,6 +632,12 @@ int main(int argc, char *argv[]) {
     nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
 
     NOMADCAP_STDOUT_V(np, "Loaded %d OUIs\n", nomadcap_oui_size(np));
+
+#ifdef USE_LIBJANSSON
+    /* Add number of loaded OUIs to JSON object */
+    if (NOMADCAP_FLAG(np, JSON))
+      NOMADCAP_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(np)));
+#endif /* USE_LIBJANSSON */
   }
 #endif /* USE_LIBCSV */
 
@@ -613,6 +650,10 @@ int main(int argc, char *argv[]) {
 
   /* Current state */
   NOMADCAP_STDOUT(np, "Listening on: %s\n", np->device);
+
+#ifdef USE_LIBJANSSON
+  NOMADCAP_JSON_PACK(np, "listening_on", json_string(np->device));
+#endif /* USE_LIBJANSSON */
 
   /* Network details (verbose only)... */
   if (NOMADCAP_FLAG(np, VERBOSE))
@@ -664,8 +705,31 @@ int main(int argc, char *argv[]) {
     } else {
       NOMADCAP_STDOUT(np, "\nPackets received: %d\n", ps.ps_recv);
       NOMADCAP_STDOUT(np, "Packets dropped: %d\n", ps.ps_drop);
+
+#ifdef USE_LIBJANSSON
+      /* Add PCAP statistics to JSON object */
+      if (NOMADCAP_FLAG(np, JSON)) {
+        stats = json_object();
+
+        /* Add packet statistics */
+        json_object_set_new(stats, "pkts_recv", json_integer(ps.ps_recv));
+        json_object_set_new(stats, "pkts_drop", json_integer(ps.ps_drop));
+
+        /* Add statistics JSON object to root JSON object */
+        NOMADCAP_JSON_PACK_V(np, "stats", stats);
+      }
+#endif /* USE_LIBJANSSON */
     }
   }
+
+#ifdef USE_LIBJANSSON
+  /* Add version and output JSON object */
+  if (NOMADCAP_FLAG(np, JSON)) {
+    NOMADCAP_JSON_PACK_V(np, "version", json_string(NOMADCAP_VERSION));
+
+    nomadcap_json_print(np);
+  }
+#endif
 
   nomadcap_exit(np, EXIT_SUCCESS);
 }
@@ -688,6 +752,11 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
 
   NOMADCAP_STDOUT_V(np, "Found interface: %s\n", np->device);
 
+#ifdef USE_LIBJANSSON
+  if (NOMADCAP_FLAG(np, JSON))
+    NOMADCAP_JSON_PACK_V(np, "found_interface", json_string(np->device));
+#endif /* USE_LIBJANSSON */
+
   /* Free the list of interfaces */
   pcap_freealldevs(devs);
 }
@@ -702,6 +771,14 @@ void nomadcap_netprint(nomadcap_pack_t *np) {
 
   NOMADCAP_STDOUT(np, "Local network: %s\n", localnet_s);
   NOMADCAP_STDOUT(np, "Network mask: %s\n", netmask_s);
+
+#ifdef USE_LIBJANSSON
+  /* Add local network and mask to JSON object */
+  if (NOMADCAP_FLAG(np, JSON)) {
+    NOMADCAP_JSON_PACK(np, "localnet", json_string(localnet_s));
+    NOMADCAP_JSON_PACK(np, "netmask", json_string(netmask_s));
+  }
+#endif /* USE_LIBJANSSON */
 }
 
 void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
@@ -716,6 +793,12 @@ void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
   } else {
     /* Offline capture */
     NOMADCAP_STDOUT_V(np, "Loading capture file: %s\n", np->filename);
+
+#ifdef USE_LIBJANSSON
+    /* Add offline capture filename to JSON object */
+    if (NOMADCAP_FLAG(np, JSON))
+      NOMADCAP_JSON_PACK_V(np, "offline_file", json_string(np->filename));
+#endif /* USE_LIBJANSSON */
 
     /* Open file */
     np->p = pcap_open_offline(np->filename, errbuf);
@@ -751,6 +834,11 @@ void nomadcap_signals(nomadcap_pack_t *np) {
   /* Duration alarm */
   if (np->duration > 0) {
     NOMADCAP_STDOUT_V(np, "Capturing for %d seconds\n", np->duration);
+
+#ifdef USE_LIBJANSSON
+    if (NOMADCAP_FLAG(np, JSON))
+      NOMADCAP_JSON_PACK_V(np, "duration", json_integer(np->duration));
+#endif /* USE_LIBJANSSON */
 
     if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1)
       NOMADCAP_FAILURE(np, "Can't catch SIGALRM signal\n");
