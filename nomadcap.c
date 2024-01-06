@@ -419,15 +419,18 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
     json_object_set_new(result, "tgt_ip", json_string(tgt_ip));
 
 #ifdef USE_LIBCSV
-  /* Add OUI org. details to JSON object */
-  if (NOMADCAP_FLAG(np, OUI) && oui_entry)
-      json_object_set_new(result, "org", json_string(oui_entry->org_name));
+    /* Add OUI org. details to JSON object */
+    if (NOMADCAP_FLAG(np, OUI) && oui_entry)
+        json_object_set_new(result, "org", json_string(oui_entry->org_name));
 #endif /* USE_LIBCSV */
-
 
     /* Append result JSON object (source IP, source hardware, target IP) */
     json_array_append_new(results, result);
 
+    /* Increment reference so we don't lose it through macro */
+    json_incref(results);
+
+    /* Pack our result in results array */
     NOMADCAP_JSON_PACK(np, "results", results);
   }
 #endif /* USE_LIBJANSSON */  
@@ -617,6 +620,8 @@ int main(int argc, char *argv[]) {
 #ifdef USE_LIBJANSSON
     case 'j':
       np->flags |= NOMADCAP_FLAGS_JSON;
+      /* Enable duration when using JSON mode */
+      np->duration = NOMADCAP_DURATION;
       break;
 #endif /* USE_LIBJANSSON */
     case 'L': /* List interfaces */
@@ -635,8 +640,12 @@ int main(int argc, char *argv[]) {
 
 #ifdef USE_LIBJANSSON
   /* Initialize JSON object */
-  if (NOMADCAP_FLAG(np, JSON))
+  if (NOMADCAP_FLAG(np, JSON)) {
     np->json = json_object();
+
+    /* Start with empty results array */
+    NOMADCAP_JSON_PACK(np, "results", json_array());
+  }
 #endif /* USE_LIBJANSSON */
 
   /* Warn if using file capture with device network and mask */
@@ -732,7 +741,8 @@ int main(int argc, char *argv[]) {
         nomadcap_output(np, arp);
 
         /* Terminate loop if only looking for one match */
-        if (NOMADCAP_FLAG(np, ONE)) loop = 0;
+        if (NOMADCAP_FLAG(np, ONE))
+          loop = 0;
       } else {
         NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
       }
