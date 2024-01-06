@@ -71,7 +71,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -n NETWORK      Capture network (e.g. 192.0.2.0)
         -m NETMASK      Capture netmask (e.g. 255.255.255.0)
         -f FILE.PCAP    Offline capture using FILE.PCAP
-        -d SECONDS      Duration of capture (default: 60)
+        -d SECONDS      Duration of capture (default: 60, forever: 0)
         -O              MAC OUI to organization
         -A              All networks (ARP request monitor)
         -p              Process ARP probes
