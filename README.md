@@ -182,3 +182,36 @@ Local traffic, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 Reached end of capture file: nomad.pcapng
 ```
+#### Example 4
+
+```sh
+sudo build/nomadcap -Ov -j -1
+```
+
+Capture single match (-1) with organization details (-O) in Verbose (-v) and JSON mode (-j).
+JSON mode printing a JSON object with capture details and results (if any).
+
+```text
+{
+  "found_intf": "wlo1",
+  "flags": 1601,
+  "oui_file": "/usr/share/ieee-data/oui.csv",
+  "ouis": 32531,
+  "listening_on": "wlo1",
+  "localnet": "192.168.2.0",
+  "netmask": "255.255.255.0",
+  "results": [
+    {
+      "src_ip": "10.0.70.252",
+      "src_ha": "a4:2a:95:15:c9:10",
+      "tgt_ip": "10.0.70.1",
+      "org": "D-Link International"
+    }
+  ],
+  "stats": {
+    "pkts_recv": 4,
+    "pkts_drop": 0
+  },
+  "version": "0.1"
+}%
+```

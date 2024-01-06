@@ -674,8 +674,10 @@ int main(int argc, char *argv[]) {
 
 #ifdef USE_LIBJANSSON
     /* Add number of loaded OUIs to JSON object */
-    if (NOMADCAP_FLAG(np, JSON))
+    if (NOMADCAP_FLAG(np, JSON)) {
+      NOMADCAP_JSON_PACK_V(np, "oui_file", json_string(NOMADCAP_OUI_FILEPATH));
       NOMADCAP_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(np)));
+    }
 #endif /* USE_LIBJANSSON */
   }
 #endif /* USE_LIBCSV */
