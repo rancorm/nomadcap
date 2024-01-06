@@ -23,7 +23,7 @@
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff"
 
 /* Application specific */
-#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1"
+#define NOMADCAP_OPTS "LOApai:n:m:f:dmhvV1j"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -52,6 +52,10 @@
 /* Initial OUI dynamic memory allocation */
 #define NOMADCAP_OUI_ENTRIES 4096
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+#define NOMADCAP_FLAGS_JSON 0x400
+#endif /* USE_LIBJANSSON */
 
 #define NOMADCAP_VERSION "0.1"
 
@@ -89,6 +93,10 @@ typedef struct nomadcap_pack {
   u_int32_t oui_index;
 #endif /* USE_LIBCSV */
 
+#ifdef USE_LIBJANSSON
+  json_t *json;
+#endif /* USE_LIBJANSSON */
+
   /* PCAP */
   pcap_t *p;
   struct pcap_pkthdr ph;
@@ -97,6 +105,48 @@ typedef struct nomadcap_pack {
   bpf_u_int32 localnet, netmask;
 } nomadcap_pack_t;
 
+#ifdef USE_LIBJANSSON
+#define NOMADCAP_STDERR(pack, format, ...)                                     \
+  do {                                                                         \
+    if (NOMADCAP_FLAG_NOT(pack, JSON)) {                                       \
+      fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__);                      \
+    }                                                                          \
+  } while (0)
+
+#define NOMADCAP_STDOUT(pack, format, ...)                                     \
+  do {                                                                         \
+    if (NOMADCAP_FLAG_NOT(pack, JSON)) {                                       \
+      printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
+    }                                                                          \
+  } while (0)
+
+#define NOMADCAP_STDOUT_V(pack, format, ...)                                   \
+  do {                                                                         \
+    if (NOMADCAP_FLAG(pack, VERBOSE) && NOMADCAP_FLAG_NOT(pack, JSON)) {       \
+      printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
+    }                                                                          \
+  } while (0)
+
+#define NOMADCAP_WARNING(pack, format, ...)                                    \
+  do {                                                                         \
+    if (NOMADCAP_FLAG_NOT(pack, JSON)) {                                       \
+      fprintf(stderr, format  __VA_OPT__(, ) __VA_ARGS__);                     \
+    }                                                                          \
+  } while(0)
+
+#define NOMADCAP_JSON_PACK(pack, name, value)                                  \
+  do {                                                                         \
+    json_object_set_new(pack->json, name, value);                                \
+  } while (0)
+
+#define NOMADCAP_JSON_PACK_V(pack, name, value)                                \
+  do {                                                                         \
+    if (NOMADCAP_FLAG(pack, VERBOSE)) {                                    \
+      json_object_set_new(pack->json, name, value);                              \
+    }                                                                          \
+  } while (0)
+
+#else
 #define NOMADCAP_STDERR(pack, format, ...)                                     \
   do {                                                                         \
     fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__);                        \
@@ -104,7 +154,7 @@ typedef struct nomadcap_pack {
 
 #define NOMADCAP_STDOUT(pack, format, ...)                                     \
   do {                                                                         \
-    printf(format __VA_OPT__(, ) __VA_ARGS__);                                 \
+      printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
   } while (0)
 
 #define NOMADCAP_STDOUT_V(pack, format, ...)                                   \
@@ -113,6 +163,12 @@ typedef struct nomadcap_pack {
       printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
     }                                                                          \
   } while (0)
+
+#define NOMADCAP_WARNING(pack, format, ...)                                    \
+  do {                                                                         \
+    fprintf(stderr, format  __VA_OPT__(, ) __VA_ARGS__);                       \
+  } while(0)
+#endif /* USE_LIBJANSSON */
 
 #define NOMADCAP_FAILURE(pack, format, ...)                                    \
   do {                                                                         \
@@ -125,14 +181,12 @@ typedef struct nomadcap_pack {
     nomadcap_exit(pack, EXIT_SUCCESS);                                         \
   } while (0)
 
-#define NOMADCAP_WARNING(pack, format, ...)                                    \
-  do {                                                                         \
-    fprintf(stderr, format  __VA_OPT__(, ) __VA_ARGS__);                       \
-  } while(0)
-
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif /* ETH_ALEN */
+
+/* Ethernet address string length (12 + 5 + 1)*/
+#define ETHER_ADDRSTRLEN (12 + 5 + 1)
 
 void nomadcap_finddev(nomadcap_pack_t *np, char *errbuff);
 void nomadcap_signals(nomadcap_pack_t *np);

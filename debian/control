@@ -5,7 +5,8 @@ Maintainer: Jonathan Cormier <jonathan@cormier.co>
 Build-Depends: debhelper (>= 12),
     debhelper-compat (= 13),
     libpcap-dev,
-    libcsv-dev
+    libcsv-dev,
+    libjansson-dev
 Standards-Version: 4.6.1
 Vcs-Browser: https://github.com/jcormir/nomadcap
 Vcs-Git: https://github.com/jcormir/nomadcap.git
@@ -16,6 +17,7 @@ Depends: ${shlibs:Depends},
     ${misc:Depends},
     libpcap0.8,
     libcsv3,
+    libjansson4,
     ieee-data
 Description: PCAP tool that aids in locating misconfigured network stacks 
  Nomadcap is a PCAP based tool that aids in identifying mis-configured network

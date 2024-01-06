@@ -28,6 +28,19 @@ endif
 $(shell rm -f libcsv_test)
 $(shell rm -f libcsv_test.c)
 
+# Test for libjansson, if found link to it.
+LIBJANSSON_PROG="int main() { return 0; }"
+LIBJANSSON_TEST:=$(shell echo $(LIBJANSSON_PROG) > libjansson_test.c && $(CC) -o libjansson_test libjansson_test.c -ljansson 2> /dev/null && echo 1)
+
+ifeq ($(LIBJANSSON_TEST),1)
+	CFLAGS += -DUSE_LIBJANSSON
+    LDFLAGS += -ljansson
+endif
+
+# Clean up after libcsv test
+$(shell rm -f libjansson_test)
+$(shell rm -f libjansson_test.c)
+
 .PHONY: clean
 
 # Targets

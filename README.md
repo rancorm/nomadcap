@@ -16,6 +16,7 @@ requests that are not intended for the local network.
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
+- JSON output (-j) - *libjansson*
 - Verbose mode (-v)
 
 ## Get Started
@@ -27,10 +28,16 @@ sudo apt update
 sudo apt install build-essential libpcap0.8 libpcap-dev
 ```
 
-*Optional*. Compile with IEEE OUI CSV support. Install libcsv for parsing.
+*Optional*. Compile with IEEE OUI support. Install libcsv for parsing.
 
 ```bash
 sudo apt install libcsv3 libcsv-dev ieee-data
+```
+
+*Optional*. Compile with JSON support. Install libjansson for JSON output.
+
+```bash
+sudo apt install libjansson4 libjansson-dev
 ```
 
 Clone this repository and run `make`. Results are in the directory `build/`.
@@ -58,19 +65,20 @@ build/nomadcap -h
 ```text
 nomadcap v0.1 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OApa1LvV]
+Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OjApa1LvV]
 
         -i INTF         Capture on specific interface
         -n NETWORK      Capture network (e.g. 192.0.2.0)
         -m NETMASK      Capture netmask (e.g. 255.255.255.0)
         -f FILE.PCAP    Offline capture using FILE.PCAP
-        -d SECONDS      Duration of capture (default: 60)
+        -d SECONDS      Duration of capture (default: 60, forever: 0)
         -O              MAC OUI to organization
         -A              All networks (ARP request monitor)
         -p              Process ARP probes
         -a              Process ARP announcements
         -1              Exit after single match
         -L              List available interfaces
+        -j              JSON output
         -v              Verbose mode
         -V              Version
 ```
@@ -112,7 +120,7 @@ Packets dropped: 0
 sudo build/nomadcap -Ov -1
 ```
 
-Another example using Single match (1), OUI look up (O) and Verbose mode (v) features.
+Another example using single match (-1), OUI look up (-O) and Verbose mode (-v) features.
 
 ```text
 Looking for interface...
@@ -140,7 +148,7 @@ Packets dropped: 0
 build/nomadcap -Ov -f nomad.pcapng
 ```
 
-Read from offline file `nomad.pcapng` in Verbose mode (-v) with OUI look up (-O).
+Read from offline file (-f) `nomad.pcapng` in verbose mode (-v) with OUI look up (-O).
 
 Note, the warning about using -f without -n, in this example capture came from same network
 as interface, otherwise we would have used -n and -m switch respectfully.
@@ -173,4 +181,37 @@ Local traffic, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 Reached end of capture file: nomad.pcapng
+```
+#### Example 4
+
+```sh
+sudo build/nomadcap -Ov -j -1
+```
+
+Capture single match (-1) with organization details (-O) in verbose (-v) and JSON mode (-j).
+JSON mode prints a JSON object with capture details and results (if any).
+
+```text
+{
+  "found_intf": "wlo1",
+  "flags": 1601,
+  "oui_file": "/usr/share/ieee-data/oui.csv",
+  "ouis": 32531,
+  "listening_on": "wlo1",
+  "localnet": "192.168.2.0",
+  "netmask": "255.255.255.0",
+  "results": [
+    {
+      "src_ip": "10.0.70.252",
+      "src_ha": "a4:2a:95:15:c9:10",
+      "tgt_ip": "10.0.70.1",
+      "org": "D-Link International"
+    }
+  ],
+  "stats": {
+    "pkts_recv": 4,
+    "pkts_drop": 0
+  },
+  "version": "0.1"
+}%
 ```

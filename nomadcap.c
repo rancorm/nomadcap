@@ -24,6 +24,10 @@
 #include <csv.h>
 #endif /* USE_LIBCSV */
 
+#ifdef USE_LIBJANSSON
+#include <jansson.h>
+#endif /* USE_LIBJANSSON */
+
 /* getopt friends */
 extern char *optarg;
 extern int optopt;
@@ -77,6 +81,11 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
       free(np->oui_data);
     }
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+    if (np->json)
+      json_decref(np->json);
+#endif /* USE_LIBJANSSON*/
 
     /* Close capture device */
     if (np->p)
@@ -244,6 +253,18 @@ int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
 }
 #endif /* USE_LIBCSV */
 
+#ifdef USE_LIBJANSSON
+void nomadcap_json_print(nomadcap_pack_t *np) {
+  char *json_string = json_dumps(np->json, JSON_INDENT(2));
+
+  /* Output and free */
+  if (json_string) {
+    printf("%s", json_string);
+    free(json_string);
+  }
+}
+#endif /* USE_LIBJANSSON */
+
 int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
   bpf_u_int32 netmask_hbo, localnet_hbo;
   bpf_u_int32 netaddr, netaddr_hbo;
@@ -284,18 +305,18 @@ int nomadcap_signal(int signo, void (*handler)()) {
   }
 }
 
-void nomadcap_aprint(nomadcap_pack_t *np, uint8_t *addr, int size, char sep, int hex) {
+void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
   for (int i = 0; i < size; i++) {
-    /* Output in hex or decimal */
+    /* Store hex or decimal */
     if (hex) {
-      NOMADCAP_STDOUT(np, "%02x", addr[i]);
+      snprintf(buf + strlen(buf), buf_size, "%02x", addr[i]);
     } else {
-      NOMADCAP_STDOUT(np, "%d", addr[i]);
+      snprintf(buf + strlen(buf), buf_size, "%d", addr[i]);
     }
 
-    /* Output seperator */
+    /* Store seperator */
     if (i < size - 1)
-      NOMADCAP_STDOUT(np, "%c", sep);
+      snprintf(buf + strlen(buf), buf_size, "%c", sep);
   }
 }
 
@@ -311,6 +332,11 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "O");
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+  NOMADCAP_STDOUT(np, "j");
+#endif /* USE_LIBJANSSON */
+
   NOMADCAP_STDOUT(np, "Apa1LvV]\n\n");
 
   NOMADCAP_STDOUT(np, "\t-i INTF\t\tCapture on specific interface\n");
@@ -318,7 +344,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-m NETMASK\tCapture netmask (e.g. 255.255.255.0)\n");
   NOMADCAP_STDOUT(
       np, "\t-f FILE.PCAP\tOffline capture using FILE.PCAP\n");
-  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (default: %d)\n", NOMADCAP_DURATION);
+  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (default: %d, forever: 0)\n", NOMADCAP_DURATION);
 
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "\t-O\t\tMAC OUI to organization\n");
@@ -329,24 +355,41 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
   NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
   NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
+
+#ifdef USE_LIBJANSSON
+  NOMADCAP_STDOUT(np, "\t-j\t\tJSON output\n");
+#endif /* USE_LIBJANSSON */
+
   NOMADCAP_STDOUT(np, "\t-v\t\tVerbose mode\n");
   NOMADCAP_STDOUT(np, "\t-V\t\tVersion\n");
 
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
 
-/* Format: <Sender IP> [<Sender MAC>] is looking for <Target IP> */
 void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
+  char src_ip[INET_ADDRSTRLEN], tgt_ip[INET_ADDRSTRLEN];
+  char src_ha[ETHER_ADDRSTRLEN];
+
 #ifdef USE_LIBCSV
   nomadcap_oui_t *oui_entry;
 #endif /* USE_LIBCSV */
 
-  /* Sender IP */
-  nomadcap_aprint(np, arp->arp_spa, 4, '.', 0);
+#ifdef USE_LIBJANSSON
+  json_t *results, *result;
+#endif /* USE_LIBJANSSON */
 
-  /* Sender MAC */
-  NOMADCAP_STDOUT(np, " [");
-  nomadcap_aprint(np, arp->arp_sha, ETH_ALEN, ':', 1);
+  /* Clear memory */
+  memset(src_ip, 0, sizeof(src_ip));
+  memset(src_ha, 0, sizeof(src_ha));
+  memset(tgt_ip, 0, sizeof(tgt_ip));
+
+  /* Print address to their respective buffers */
+  nomadcap_anprint(np, src_ip, sizeof(src_ip) - 1, arp->arp_spa, 4, '.', 0);
+  nomadcap_anprint(np, src_ha, sizeof(src_ha) - 1, arp->arp_sha, ETH_ALEN, ':', 1);
+  nomadcap_anprint(np, tgt_ip, sizeof(tgt_ip) - 1, arp->arp_tpa, 4, '.', 0);
+
+  /* Final output: <Sender IP> [<Sender MAC> - Org] is looking for <Target IP> */
+  NOMADCAP_STDOUT(np, "%s [%s", src_ip, src_ha);
 
 #ifdef USE_LIBCSV
   /* Output OUI org. details */
@@ -358,12 +401,39 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   }
 #endif /* USE_LIBCSV */
 
-  NOMADCAP_STDOUT(np, "] is looking for ");
+  /* Output target IP */
+  NOMADCAP_STDOUT(np, "] is looking for %s\n", tgt_ip);
 
-  /* Target IP */
-  nomadcap_aprint(np, arp->arp_tpa, 4, '.', 0);
+#ifdef USE_LIBJANSSON
+  if (NOMADCAP_FLAG(np, JSON)) {
+    results = json_object_get(np->json, "results");
+    result = json_object();
 
-  NOMADCAP_STDOUT(np, "\n");
+    /* No results, start with empty array */
+    if (results == NULL)
+      results = json_array();
+
+    /* Add source IP & hardware address, target IP to JSON object */
+    json_object_set_new(result, "src_ip", json_string(src_ip));
+    json_object_set_new(result, "src_ha", json_string(src_ha));
+    json_object_set_new(result, "tgt_ip", json_string(tgt_ip));
+
+#ifdef USE_LIBCSV
+    /* Add OUI org. details to JSON object */
+    if (NOMADCAP_FLAG(np, OUI) && oui_entry)
+        json_object_set_new(result, "org", json_string(oui_entry->org_name));
+#endif /* USE_LIBCSV */
+
+    /* Append result JSON object (source IP, source hardware, target IP) */
+    json_array_append_new(results, result);
+
+    /* Increment reference so we don't lose it through macro */
+    json_incref(results);
+
+    /* Pack our result in results array */
+    NOMADCAP_JSON_PACK(np, "results", results);
+  }
+#endif /* USE_LIBJANSSON */  
 }
 
 nomadcap_pack_t *nomadcap_init(char *pname) {
@@ -382,8 +452,8 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     np->filter = NOMADCAP_FILTER;
     np->flags = NOMADCAP_FLAGS_NONE;
 
-    /* Capture forever by default */
-    np->duration = 0;
+    /* Default to duration capture, 0 to capture forever */
+    np->duration = NOMADCAP_DURATION;
 
 #ifdef USE_LIBCSV
     /* Initialize OUI data and state variables */
@@ -397,6 +467,11 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     np->oui_index = 0;
     np->oui_max = NOMADCAP_OUI_ENTRIES;
 #endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+    /* Initialize JSON object */
+    np->json = NULL;
+#endif /* USE_LIBJANSSON */
 
     /* Save program name */
     np->pname = basename(pname);
@@ -487,12 +562,17 @@ int main(int argc, char *argv[]) {
   uint8_t *pkt;
   int c = -1, is_local = -1;
 
+#ifdef USE_LIBJANSSON
+  json_t *stats;
+#endif /* USE_LIBJANSSON */
+
   /* Init */
   np = nomadcap_init(argv[0]);
 
   /* Bail if there are memory troubles */
   if (np == NULL) {
     fprintf(stderr, "nomadcap_init: alloc failure\n");
+    
     exit(EXIT_FAILURE);
   }
 
@@ -538,6 +618,11 @@ int main(int argc, char *argv[]) {
     case '1': /* Single match */
       np->flags |= NOMADCAP_FLAGS_ONE;
       break;
+#ifdef USE_LIBJANSSON
+    case 'j':
+      np->flags |= NOMADCAP_FLAGS_JSON;
+      break;
+#endif /* USE_LIBJANSSON */
     case 'L': /* List interfaces */
       nomadcap_printdevs(np, errbuf);
       NOMADCAP_SUCCESS(np);
@@ -551,6 +636,16 @@ int main(int argc, char *argv[]) {
       NOMADCAP_WARNING(np, "Unknown switch -%c, check -h.\n", optopt);
     }
   }
+
+#ifdef USE_LIBJANSSON
+  /* Initialize JSON */
+  if (NOMADCAP_FLAG(np, JSON)) {
+    np->json = json_object();
+
+    /* Start with empty results array */
+    NOMADCAP_JSON_PACK(np, "results", json_array());
+  }
+#endif /* USE_LIBJANSSON */
 
   /* Warn if using file capture with device network and mask */
   if (NOMADCAP_FLAG(np, FILE) &&
@@ -568,8 +663,15 @@ int main(int argc, char *argv[]) {
 
   NOMADCAP_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
 
+#ifdef USE_LIBJANSSON
+  /* Add flags to JSON object */
+  if (NOMADCAP_FLAG(np, JSON))
+    NOMADCAP_JSON_PACK_V(np, "flags", json_integer(np->flags));
+#endif /* USE_LIBJANSSON */
+
   /* Load IEEE OUI data */
 #ifdef USE_LIBCSV
+  /* Load OUIs from IEEE CSV file */
   if (NOMADCAP_FLAG(np, OUI)) {
     NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n",
                       NOMADCAP_OUI_FILEPATH);
@@ -577,11 +679,19 @@ int main(int argc, char *argv[]) {
     nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
 
     NOMADCAP_STDOUT_V(np, "Loaded %d OUIs\n", nomadcap_oui_size(np));
+
+#ifdef USE_LIBJANSSON
+    /* Add number of loaded OUIs to JSON object */
+    if (NOMADCAP_FLAG(np, JSON)) {
+      NOMADCAP_JSON_PACK_V(np, "oui_file", json_string(NOMADCAP_OUI_FILEPATH));
+      NOMADCAP_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(np)));
+    }
+#endif /* USE_LIBJANSSON */
   }
 #endif /* USE_LIBCSV */
 
   /* Open device/file, set filter, check datalink, and
-    .lookup network and mask */
+     lookup network and mask */
   nomadcap_pcap_setup(np, errbuf);
 
   /* Setup signal handlers */
@@ -589,6 +699,10 @@ int main(int argc, char *argv[]) {
 
   /* Current state */
   NOMADCAP_STDOUT(np, "Listening on: %s\n", np->device);
+
+#ifdef USE_LIBJANSSON
+  NOMADCAP_JSON_PACK(np, "listening_on", json_string(np->device));
+#endif /* USE_LIBJANSSON */
 
   /* Network details (verbose only)... */
   if (NOMADCAP_FLAG(np, VERBOSE))
@@ -626,7 +740,8 @@ int main(int argc, char *argv[]) {
         nomadcap_output(np, arp);
 
         /* Terminate loop if only looking for one match */
-        if (NOMADCAP_FLAG(np, ONE)) loop = 0;
+        if (NOMADCAP_FLAG(np, ONE))
+          loop = 0;
       } else {
         NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
       }
@@ -640,8 +755,31 @@ int main(int argc, char *argv[]) {
     } else {
       NOMADCAP_STDOUT(np, "\nPackets received: %d\n", ps.ps_recv);
       NOMADCAP_STDOUT(np, "Packets dropped: %d\n", ps.ps_drop);
+
+#ifdef USE_LIBJANSSON
+      /* Add PCAP statistics to JSON object */
+      if (NOMADCAP_FLAG(np, JSON)) {
+        stats = json_object();
+
+        /* Add packet statistics */
+        json_object_set_new(stats, "pkts_recv", json_integer(ps.ps_recv));
+        json_object_set_new(stats, "pkts_drop", json_integer(ps.ps_drop));
+
+        /* Add statistics JSON object to root JSON object */
+        NOMADCAP_JSON_PACK(np, "stats", stats);
+      }
+#endif /* USE_LIBJANSSON */
     }
   }
+
+#ifdef USE_LIBJANSSON
+  /* Add version and output JSON object */
+  if (NOMADCAP_FLAG(np, JSON)) {
+    NOMADCAP_JSON_PACK_V(np, "version", json_string(NOMADCAP_VERSION));
+
+    nomadcap_json_print(np);
+  }
+#endif
 
   nomadcap_exit(np, EXIT_SUCCESS);
 }
@@ -664,6 +802,11 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
 
   NOMADCAP_STDOUT_V(np, "Found interface: %s\n", np->device);
 
+#ifdef USE_LIBJANSSON
+  if (NOMADCAP_FLAG(np, JSON))
+    NOMADCAP_JSON_PACK_V(np, "found_intf", json_string(np->device));
+#endif /* USE_LIBJANSSON */
+
   /* Free the list of interfaces */
   pcap_freealldevs(devs);
 }
@@ -678,6 +821,14 @@ void nomadcap_netprint(nomadcap_pack_t *np) {
 
   NOMADCAP_STDOUT(np, "Local network: %s\n", localnet_s);
   NOMADCAP_STDOUT(np, "Network mask: %s\n", netmask_s);
+
+#ifdef USE_LIBJANSSON
+  /* Add local network and mask to JSON object */
+  if (NOMADCAP_FLAG(np, JSON)) {
+    NOMADCAP_JSON_PACK(np, "localnet", json_string(localnet_s));
+    NOMADCAP_JSON_PACK(np, "netmask", json_string(netmask_s));
+  }
+#endif /* USE_LIBJANSSON */
 }
 
 void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
@@ -692,6 +843,12 @@ void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
   } else {
     /* Offline capture */
     NOMADCAP_STDOUT_V(np, "Loading capture file: %s\n", np->filename);
+
+#ifdef USE_LIBJANSSON
+    /* Add offline capture filename to JSON object */
+    if (NOMADCAP_FLAG(np, JSON))
+      NOMADCAP_JSON_PACK_V(np, "offline_file", json_string(np->filename));
+#endif /* USE_LIBJANSSON */
 
     /* Open file */
     np->p = pcap_open_offline(np->filename, errbuf);
@@ -727,6 +884,11 @@ void nomadcap_signals(nomadcap_pack_t *np) {
   /* Duration alarm */
   if (np->duration > 0) {
     NOMADCAP_STDOUT_V(np, "Capturing for %d seconds\n", np->duration);
+
+#ifdef USE_LIBJANSSON
+    if (NOMADCAP_FLAG(np, JSON))
+      NOMADCAP_JSON_PACK_V(np, "duration", json_integer(np->duration));
+#endif /* USE_LIBJANSSON */
 
     if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1)
       NOMADCAP_FAILURE(np, "Can't catch SIGALRM signal\n");
