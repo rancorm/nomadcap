@@ -93,8 +93,10 @@ Run `nomadcap` under sudo, root, or group with permission to perform live captur
 sudo build/nomadcap -v
 ```
 
-Capturing on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
+Capture on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
 In this example `10.0.70.5` is the misconfigured host looking for the default gateway `10.0.70.1`.
+
+Capture for the default duration of 60 seconds.
 
 ```text
 Looking for interface...
@@ -118,10 +120,11 @@ Packets dropped: 0
 #### Example 2
 
 ```bash
-sudo build/nomadcap -Ov -1
+sudo build/nomadcap -Ov -1 -d 0
 ```
 
-Another example using single match (-1), OUI look up (-O) and Verbose mode (-v) features.
+Another example using single match (-1), OUI look up (-O), verbose mode (-v), and
+capture forever (-d 0) features.
 
 ```text
 Looking for interface...
@@ -198,6 +201,7 @@ JSON mode prints a JSON object with capture details and results (if any).
   "flags": 1601,
   "oui_file": "/usr/share/ieee-data/oui.csv",
   "ouis": 32531,
+  "duration": 60,
   "listening_on": "wlo1",
   "localnet": "192.168.2.0",
   "netmask": "255.255.255.0",
