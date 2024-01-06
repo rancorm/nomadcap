@@ -344,7 +344,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-m NETMASK\tCapture netmask (e.g. 255.255.255.0)\n");
   NOMADCAP_STDOUT(
       np, "\t-f FILE.PCAP\tOffline capture using FILE.PCAP\n");
-  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (default: %d)\n", NOMADCAP_DURATION);
+  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (default: %d, forever: 0)\n", NOMADCAP_DURATION);
 
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "\t-O\t\tMAC OUI to organization\n");
@@ -452,8 +452,8 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     np->filter = NOMADCAP_FILTER;
     np->flags = NOMADCAP_FLAGS_NONE;
 
-    /* Capture forever by default */
-    np->duration = 0;
+    /* Default to duration capture, 0 to capture forever */
+    np->duration = NOMADCAP_DURATION;
 
 #ifdef USE_LIBCSV
     /* Initialize OUI data and state variables */
@@ -572,6 +572,7 @@ int main(int argc, char *argv[]) {
   /* Bail if there are memory troubles */
   if (np == NULL) {
     fprintf(stderr, "nomadcap_init: alloc failure\n");
+    
     exit(EXIT_FAILURE);
   }
 
@@ -620,8 +621,6 @@ int main(int argc, char *argv[]) {
 #ifdef USE_LIBJANSSON
     case 'j':
       np->flags |= NOMADCAP_FLAGS_JSON;
-      /* Enable duration when using JSON mode */
-      np->duration = NOMADCAP_DURATION;
       break;
 #endif /* USE_LIBJANSSON */
     case 'L': /* List interfaces */
@@ -639,7 +638,7 @@ int main(int argc, char *argv[]) {
   }
 
 #ifdef USE_LIBJANSSON
-  /* Initialize JSON object */
+  /* Initialize JSON */
   if (NOMADCAP_FLAG(np, JSON)) {
     np->json = json_object();
 
@@ -692,7 +691,7 @@ int main(int argc, char *argv[]) {
 #endif /* USE_LIBCSV */
 
   /* Open device/file, set filter, check datalink, and
-    .lookup network and mask */
+     lookup network and mask */
   nomadcap_pcap_setup(np, errbuf);
 
   /* Setup signal handlers */
