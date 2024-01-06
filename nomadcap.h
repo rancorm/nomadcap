@@ -57,7 +57,7 @@
 #define NOMADCAP_FLAGS_JSON 0x400
 #endif /* USE_LIBJANSSON */
 
-#define NOMADCAP_VERSION "0.1"
+#define NOMADCAP_VERSION "0.2"
 
 /* OUI entry */
 typedef struct nomadcap_oui {
@@ -136,13 +136,13 @@ typedef struct nomadcap_pack {
 
 #define NOMADCAP_JSON_PACK(pack, name, value)                                  \
   do {                                                                         \
-    json_object_set_new(pack->json, name, value);                                \
+    json_object_set_new(pack->json, name, value);                              \
   } while (0)
 
 #define NOMADCAP_JSON_PACK_V(pack, name, value)                                \
   do {                                                                         \
-    if (NOMADCAP_FLAG(pack, VERBOSE)) {                                    \
-      json_object_set_new(pack->json, name, value);                              \
+    if (NOMADCAP_FLAG(pack, VERBOSE)) {                                        \
+      json_object_set_new(pack->json, name, value);                            \
     }                                                                          \
   } while (0)
 

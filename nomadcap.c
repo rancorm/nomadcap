@@ -534,18 +534,19 @@ void nomadcap_printdevs(nomadcap_pack_t *np, char *errbuf) {
 
   /* Loop through devices */
   for (dev = &devs[0]; dev != NULL; dev = dev->next) {
+    net = mask = 0;
+
     /* Look up device network and mask */
-    if (pcap_lookupnet(dev->name, &net, &mask, errbuf) == -1)
-      NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
+    if(pcap_lookupnet(dev->name, &net, &mask, errbuf) == 0) {
+      /* Output device if network settings found */
+      if (net != 0) {
+        /* Convert network and mask to human readable strings */
+        inet_ntop(AF_INET, &net, net_s, sizeof(net_s));
+        inet_ntop(AF_INET, &mask, mask_s, sizeof(mask_s));
 
-    /* Output device if network settings found */
-    if (net != 0) {
-      /* Convert network and mask to human readable strings */
-      inet_ntop(AF_INET, &net, net_s, sizeof(net_s));
-      inet_ntop(AF_INET, &mask, mask_s, sizeof(mask_s));
-
-      /* Output device details */
-      NOMADCAP_STDOUT(np, "%s\t%s\t%s\n", dev->name, net_s, mask_s);
+        /* Output device details */
+        NOMADCAP_STDOUT(np, "%s\t%s\t%s\n", dev->name, net_s, mask_s);
+      }
     }
   }
 
