@@ -100,6 +100,7 @@ In this example `10.0.70.5` is the misconfigured host looking for the default ga
 Looking for interface...
 Found interface: wlo1
 Flags: 0x00000001
+Capturing for 60 seconds
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0

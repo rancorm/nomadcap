@@ -638,6 +638,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  /* Turn of duration capture for offline capture */
+  if (NOMADCAP_FLAG(np, FILE))
+    np->duration = 0;
+
 #ifdef USE_LIBJANSSON
   /* Initialize JSON */
   if (NOMADCAP_FLAG(np, JSON)) {
