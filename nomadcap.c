@@ -305,18 +305,18 @@ int nomadcap_signal(int signo, void (*handler)()) {
   }
 }
 
-void nomadcap_aprint(nomadcap_pack_t *np, uint8_t *addr, int size, char sep, int hex) {
+void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
   for (int i = 0; i < size; i++) {
-    /* Output in hex or decimal */
+    /* Store hex or decimal */
     if (hex) {
-      NOMADCAP_STDOUT(np, "%02x", addr[i]);
+      snprintf(buf + strlen(buf), buf_size, "%02x", addr[i]);
     } else {
-      NOMADCAP_STDOUT(np, "%d", addr[i]);
+      snprintf(buf + strlen(buf), buf_size, "%d", addr[i]);
     }
 
-    /* Output seperator */
+    /* Store seperator */
     if (i < size - 1)
-      NOMADCAP_STDOUT(np, "%c", sep);
+      snprintf(buf + strlen(buf), buf_size, "%c", sep);
   }
 }
 
@@ -366,18 +366,30 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
 
-/* Format: <Sender IP> [<Sender MAC>] is looking for <Target IP> */
 void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
+  char src_ip[INET_ADDRSTRLEN], tgt_ip[INET_ADDRSTRLEN];
+  char src_ha[ETHER_ADDRSTRLEN];
+
 #ifdef USE_LIBCSV
   nomadcap_oui_t *oui_entry;
 #endif /* USE_LIBCSV */
 
-  /* Sender IP */
-  nomadcap_aprint(np, arp->arp_spa, 4, '.', 0);
+#ifdef USE_LIBJANSSON
+  json_t *results, *result;
+#endif /* USE_LIBJANSSON */
 
-  /* Sender MAC */
-  NOMADCAP_STDOUT(np, " [");
-  nomadcap_aprint(np, arp->arp_sha, ETH_ALEN, ':', 1);
+  /* Clear memory */
+  memset(src_ip, 0, sizeof(src_ip));
+  memset(src_ha, 0, sizeof(src_ha));
+  memset(tgt_ip, 0, sizeof(tgt_ip));
+
+  /* Print address to their respective buffers */
+  nomadcap_anprint(np, src_ip, sizeof(src_ip) - 1, arp->arp_spa, 4, '.', 0);
+  nomadcap_anprint(np, src_ha, sizeof(src_ha) - 1, arp->arp_sha, ETH_ALEN, ':', 1);
+  nomadcap_anprint(np, tgt_ip, sizeof(tgt_ip) - 1, arp->arp_tpa, 4, '.', 0);
+
+  /* Final output: <Sender IP> [<Sender MAC> - Org] is looking for <Target IP> */
+  NOMADCAP_STDOUT(np, "%s [%s", src_ip, src_ha);
 
 #ifdef USE_LIBCSV
   /* Output OUI org. details */
@@ -389,12 +401,36 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   }
 #endif /* USE_LIBCSV */
 
-  NOMADCAP_STDOUT(np, "] is looking for ");
+  /* Output target IP */
+  NOMADCAP_STDOUT(np, "] is looking for %s\n", tgt_ip);
 
-  /* Target IP */
-  nomadcap_aprint(np, arp->arp_tpa, 4, '.', 0);
+#ifdef USE_LIBJANSSON
+  if (NOMADCAP_FLAG(np, JSON)) {
+    results = json_object_get(np->json, "results");
+    result = json_object();
 
-  NOMADCAP_STDOUT(np, "\n");
+    /* No results, start with empty array */
+    if (results == NULL)
+      results = json_array();
+
+    /* Add source IP & hardware address, target IP to JSON object */
+    json_object_set_new(result, "src_ip", json_string(src_ip));
+    json_object_set_new(result, "src_ha", json_string(src_ha));
+    json_object_set_new(result, "tgt_ip", json_string(tgt_ip));
+
+#ifdef USE_LIBCSV
+  /* Add OUI org. details to JSON object */
+  if (NOMADCAP_FLAG(np, OUI) && oui_entry)
+      json_object_set_new(result, "org", json_string(oui_entry->org_name));
+#endif /* USE_LIBCSV */
+
+
+    /* Append result JSON object (source IP, source hardware, target IP) */
+    json_array_append_new(results, result);
+
+    NOMADCAP_JSON_PACK(np, "results", results);
+  }
+#endif /* USE_LIBJANSSON */  
 }
 
 nomadcap_pack_t *nomadcap_init(char *pname) {
@@ -757,7 +793,7 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
 
 #ifdef USE_LIBJANSSON
   if (NOMADCAP_FLAG(np, JSON))
-    NOMADCAP_JSON_PACK_V(np, "found_interface", json_string(np->device));
+    NOMADCAP_JSON_PACK_V(np, "found_intf", json_string(np->device));
 #endif /* USE_LIBJANSSON */
 
   /* Free the list of interfaces */

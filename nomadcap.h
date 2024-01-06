@@ -185,6 +185,9 @@ typedef struct nomadcap_pack {
 #define ETH_ALEN 6
 #endif /* ETH_ALEN */
 
+/* Ethernet address string length (12 + 5 + 1)*/
+#define ETHER_ADDRSTRLEN (12 + 5 + 1)
+
 void nomadcap_finddev(nomadcap_pack_t *np, char *errbuff);
 void nomadcap_signals(nomadcap_pack_t *np);
 void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf);
