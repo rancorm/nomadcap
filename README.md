@@ -19,8 +19,13 @@ requests that are not intended for the local network.
 - JSON output (-j) - *libjansson*
 - Verbose mode (-v)
 
-## Get Started
+## Dependencies
 
+- libpcap
+- libcsv *optional*
+- libjansson *optional*
+
+## Get Started
 
 ### Debian
 
@@ -116,7 +121,7 @@ Capture for the default duration of 60 seconds.
 Looking for interface...
 Found interface: wlo1
 Flags: 0x00000001
-Capturing for 60 seconds
+Duration: 60 seconds
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
@@ -147,7 +152,7 @@ Looking for interface...
 Found interface: wlo1
 Flags: 0x00000241
 Loading OUI data from /usr/share/ieee-data/oui.csv...
-Loaded 32531 OUIs
+Loaded 32,531 OUIs
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
@@ -183,7 +188,7 @@ Looking for interface...
 Found interface: wlo1
 Flags: 0x00000221
 Loading OUI data from /usr/share/ieee-data/oui.csv...
-Loaded 32531 OUIs
+Loaded 32,531 OUIs
 Loading capture file: nomad.pcapng
 Listening on: wlo1
 Local network: 192.168.2.0
@@ -242,3 +247,4 @@ timestamps (-t). JSON mode prints a JSON object with capture details and results
   "version": "0.1"
 }%
 ```
+

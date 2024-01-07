@@ -211,7 +211,7 @@ void nomadcap_oui_cb2(int num, void *data) {
   }
 }
 
-u_int32_t nomadcap_oui_size(nomadcap_pack_t *np) { return np->oui_num; }
+uint32_t nomadcap_oui_size(nomadcap_pack_t *np) { return np->oui_num; }
 
 int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
   struct csv_parser cp;

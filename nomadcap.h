@@ -87,7 +87,7 @@ typedef struct nomadcap_oui {
   char *org_name;
   char *org_address;
 
-  u_int32_t count;
+  uint32_t count;
 } nomadcap_oui_t;
 
 /* Application state package */
@@ -96,7 +96,7 @@ typedef struct nomadcap_pack {
   char *device;
   char *filter;
   char *filename;
-  u_int32_t duration;
+  uint32_t duration;
 
   /* Application running name */
   char *pname;
@@ -109,9 +109,9 @@ typedef struct nomadcap_pack {
   nomadcap_oui_t *oui_data;
   nomadcap_oui_t *oui_cache[NOMADCAP_OUI_CSIZE];
 
-  u_int32_t oui_num;
-  u_int32_t oui_max;
-  u_int32_t oui_index;
+  uint32_t oui_num;
+  uint32_t oui_max;
+  uint32_t oui_index;
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
