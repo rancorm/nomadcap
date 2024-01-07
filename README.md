@@ -90,7 +90,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -p              Process ARP probes
         -a              Process ARP announcements
         -1              Exit after single match
-        -t		          ISO 8601 timestamps
+        -t              ISO 8601 timestamps
         -L              List available interfaces
         -j              JSON output
         -v              Verbose mode

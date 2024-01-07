@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <locale.h>
 
 /* basename() */
 #include <libgen.h>
@@ -43,12 +44,15 @@ uint32_t nomadcap_addr2uint(nomadcap_pack_t *pack, char *addr) {
   uint32_t result = 0;
   char *token;
   char ip_copy[INET_ADDRSTRLEN];
-  
-  strcpy(ip_copy, addr);
+
+  /* Clear memory and copy address for token work */  
+  memset(ip_copy, 0, sizeof(ip_copy));
+  strncpy(ip_copy, addr, INET_ADDRSTRLEN - 1);
 
   /* Split the IP address into its four octets */
   token = strtok(ip_copy, ".");
 
+  /* Loop over tokens */
   for (i = 0; i < 4 && token != NULL; i++) {
       result |= (atoi(token) << (24 - i * 8));
       token = strtok(NULL, ".");
@@ -382,8 +386,8 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 
 void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   char src_ip[INET_ADDRSTRLEN], tgt_ip[INET_ADDRSTRLEN];
-  char src_ha[ETHER_ADDRSTRLEN];
-  char ts[21];
+  char src_ha[NOMADCAP_ETH_ADDRSTRLEN];
+  char ts[NOMADCAD_TSLEN];
 
 #ifdef USE_LIBCSV
   nomadcap_oui_t *oui_entry;
@@ -584,7 +588,7 @@ int main(int argc, char *argv[]) {
   struct pcap_stat ps;
   struct ether_header *eth;
   struct ether_arp *arp;
-  char errbuf[PCAP_ERRBUF_SIZE], ts[21];
+  char errbuf[PCAP_ERRBUF_SIZE], ts[NOMADCAD_TSLEN];
   uint8_t *pkt;
   int c = -1, is_local = -1;
 
@@ -666,6 +670,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  /* Set the locale to the user default */
+  setlocale(LC_NUMERIC, "");
+
   /* Turn of duration capture for offline capture */
   if (NOMADCAP_FLAG(np, FILE))
     np->duration = 0;
@@ -711,7 +718,7 @@ int main(int argc, char *argv[]) {
 
     nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
 
-    NOMADCAP_STDOUT_V(np, "Loaded %d OUIs\n", nomadcap_oui_size(np));
+    NOMADCAP_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap_oui_size(np));
 
 #ifdef USE_LIBJANSSON
     /* Add number of loaded OUIs to JSON object */
@@ -761,7 +768,7 @@ int main(int argc, char *argv[]) {
 
     /* Bail if we have no data and in offline mode */
     if (pkt == NULL && NOMADCAP_FLAG(np, FILE)) {
-      NOMADCAP_STDOUT_V(np, "Reached end of capture file: %s\n", np->filename);
+      NOMADCAP_STDOUT_V(np, "Reached end of file: %s\n", np->filename);
 
       /* Prevents looping forever */
       loop = 0;
@@ -932,7 +939,7 @@ void nomadcap_signals(nomadcap_pack_t *np) {
 
   /* Duration alarm */
   if (np->duration > 0) {
-    NOMADCAP_STDOUT_V(np, "Capturing for %d seconds\n", np->duration);
+    NOMADCAP_STDOUT_V(np, "Duration: %d seconds\n", np->duration);
 
 #ifdef USE_LIBJANSSON
     if (NOMADCAP_FLAG(np, JSON))
