@@ -407,7 +407,7 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 
   /* Timestamp */
   if (NOMADCAP_FLAG(np, TS))
-    NOMADCAP_STDOUT(np, "%s: ", ts);
+    NOMADCAP_STDOUT(np, "%s - ", ts);
 
   /* Final output: [Timestamp] <Sender IP> [<Sender MAC> - Org] is looking for <Target IP> */
   NOMADCAP_STDOUT(np, "%s [%s", src_ip, src_ha);
