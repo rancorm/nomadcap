@@ -305,6 +305,18 @@ int nomadcap_signal(int signo, void (*handler)()) {
   }
 }
 
+void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
+    time_t rawtime;
+    struct tm *timeinfo;
+
+    /* Get the current time */
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    /* Format the time as a string in ISO 8601 format */
+    strftime(ts, ts_size, "%Y-%m-%dT%H:%M:%SZ", timeinfo);
+}
+
 void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
   for (int i = 0; i < size; i++) {
     /* Store hex or decimal */
@@ -337,7 +349,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "j");
 #endif /* USE_LIBJANSSON */
 
-  NOMADCAP_STDOUT(np, "Apa1LvV]\n\n");
+  NOMADCAP_STDOUT(np, "Apa1tLvV]\n\n");
 
   NOMADCAP_STDOUT(np, "\t-i INTF\t\tCapture on specific interface\n");
   NOMADCAP_STDOUT(np, "\t-n NETWORK\tCapture network (e.g. 192.0.2.0)\n");
@@ -354,6 +366,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-p\t\tProcess ARP probes\n");
   NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
   NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
+  NOMADCAP_STDOUT(np, "\t-t\t\tISO 8601 timestamps\n");
   NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
 
 #ifdef USE_LIBJANSSON
@@ -369,6 +382,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   char src_ip[INET_ADDRSTRLEN], tgt_ip[INET_ADDRSTRLEN];
   char src_ha[ETHER_ADDRSTRLEN];
+  char ts[21];
 
 #ifdef USE_LIBCSV
   nomadcap_oui_t *oui_entry;
@@ -382,13 +396,19 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   memset(src_ip, 0, sizeof(src_ip));
   memset(src_ha, 0, sizeof(src_ha));
   memset(tgt_ip, 0, sizeof(tgt_ip));
+  memset(ts, 0, sizeof(ts));
 
   /* Print address to their respective buffers */
   nomadcap_anprint(np, src_ip, sizeof(src_ip) - 1, arp->arp_spa, 4, '.', 0);
   nomadcap_anprint(np, src_ha, sizeof(src_ha) - 1, arp->arp_sha, ETH_ALEN, ':', 1);
   nomadcap_anprint(np, tgt_ip, sizeof(tgt_ip) - 1, arp->arp_tpa, 4, '.', 0);
+  nomadcap_iso8601(np, ts, sizeof(ts));
 
-  /* Final output: <Sender IP> [<Sender MAC> - Org] is looking for <Target IP> */
+  /* Timestamp */
+  if (NOMADCAP_FLAG(np, TS))
+    NOMADCAP_STDOUT(np, "%s: ", ts);
+
+  /* Final output: [Timestamp] <Sender IP> [<Sender MAC> - Org] is looking for <Target IP> */
   NOMADCAP_STDOUT(np, "%s [%s", src_ip, src_ha);
 
 #ifdef USE_LIBCSV
@@ -417,6 +437,10 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
     json_object_set_new(result, "src_ip", json_string(src_ip));
     json_object_set_new(result, "src_ha", json_string(src_ha));
     json_object_set_new(result, "tgt_ip", json_string(tgt_ip));
+
+    /* Add result timestamp to JSON object */
+    if (NOMADCAP_FLAG(np, TS))
+      json_object_set_new(result, "ts", json_string(ts));
 
 #ifdef USE_LIBCSV
     /* Add OUI org. details to JSON object */
@@ -559,7 +583,7 @@ int main(int argc, char *argv[]) {
   struct pcap_stat ps;
   struct ether_header *eth;
   struct ether_arp *arp;
-  char errbuf[PCAP_ERRBUF_SIZE];
+  char errbuf[PCAP_ERRBUF_SIZE], ts[21];
   uint8_t *pkt;
   int c = -1, is_local = -1;
 
@@ -624,6 +648,9 @@ int main(int argc, char *argv[]) {
       np->flags |= NOMADCAP_FLAGS_JSON;
       break;
 #endif /* USE_LIBJANSSON */
+    case 't':
+      np->flags |= NOMADCAP_FLAGS_TS;
+      break;
     case 'L': /* List interfaces */
       nomadcap_printdevs(np, errbuf);
       NOMADCAP_SUCCESS(np);
@@ -709,9 +736,23 @@ int main(int argc, char *argv[]) {
   NOMADCAP_JSON_PACK(np, "listening_on", json_string(np->device));
 #endif /* USE_LIBJANSSON */
 
-  /* Network details (verbose only)... */
-  if (NOMADCAP_FLAG(np, VERBOSE))
+  /* Network details and timestamp (verbose only)... */
+  if (NOMADCAP_FLAG(np, VERBOSE)) {
+    /* Output network details */
     nomadcap_netprint(np);
+
+    /* Capture timestamp */
+    memset(ts, 0, sizeof(ts));
+
+    nomadcap_iso8601(np, ts, sizeof(ts));
+    NOMADCAP_STDOUT(np, "Started at: %s\n", ts);
+
+#ifdef USE_LIBJANSSON
+    /* Add capture start timestamp to JSON object */
+    if (NOMADCAP_FLAG(np, JSON))
+      NOMADCAP_JSON_PACK(np, "started_at", json_string(ts));
+#endif /* USE_LIBJANSSON */
+  }
 
   /* Loop */
   while (loop) {
