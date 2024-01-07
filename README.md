@@ -21,9 +21,10 @@ requests that are not intended for the local network.
 
 ## Dependencies
 
-- libpcap
-- libcsv *optional*
-- libjansson *optional*
+- libc6
+- libpcap0.8
+- libcsv3 - *optional*
+- libjansson4 - *optional*
 
 ## Get Started
 
@@ -208,7 +209,7 @@ Local traffic, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
-Reached end of capture file: nomad.pcapng
+Reached end of file: nomad.pcapng
 Done
 ```
 #### Example 4

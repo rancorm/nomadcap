@@ -6,7 +6,7 @@ BUILD_DIR:=build/
 
 # Compiler stuff
 CC:=$(shell which gcc)
-CFLAGS=
+CFLAGS=-ggdb
 LDFLAGS=-lpcap
 OBJ=$(PROJECT_NAME).o
 
@@ -14,6 +14,10 @@ OBJ=$(PROJECT_NAME).o
 MKDIR=$(shell which mkdir)
 INSTALL=$(shell which install)
 RM=$(shell which rm)
+
+# Debian package commands
+DPKG_BUILDPKG=dpkg-buildpackage
+DPKG_BUILDPKG_FLAGS=--no-sign -b
 
 # Test for libcsv, if found link to it.
 LIBCSV_PROG="int main() { return 0; }"
@@ -41,7 +45,7 @@ endif
 $(shell rm -f libjansson_test)
 $(shell rm -f libjansson_test.c)
 
-.PHONY: clean
+.PHONY: clean deb
 
 # Targets
 $(BUILD_DIR)%.o: %.c %.h $(BUILD_DIR)
@@ -62,3 +66,6 @@ install:
 clean:
 	$(RM) -f $(BUILD_DIR)*.o
 	$(RM) -f $(BUILD_DIR)$(PROJECT_NAME)
+
+deb:
+	$(DPKG_BUILDPKG) $(DPKG_BUILDPKG_FLAGS) 
