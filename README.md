@@ -65,6 +65,7 @@ Clone this repository and run `make`. Results are in the directory `build/`.
 git clone https://github.com/jcormir/nomadcap.git
 cd nomadcap
 make
+build/nomadcap -h
 ```
 
 ## Usage
@@ -76,7 +77,7 @@ General tool and command line switch usage.
 Run `nomadcap -h` to show help.
 
 ```bash
-build/nomadcap -h
+nomadcap -h
 ```
 
 #### Menu
@@ -110,7 +111,7 @@ Run `nomadcap` under sudo, root, or group with permission to perform live captur
 #### Example 1
 
 ```bash
-sudo build/nomadcap -v
+sudo nomadcap -v
 ```
 
 Capture on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
@@ -142,7 +143,7 @@ Done
 #### Example 2
 
 ```bash
-sudo build/nomadcap -Ov -1 -d 0
+sudo nomadcap -Ov -1 -d 0
 ```
 
 Another example using single match (-1), OUI look up (-O), verbose mode (-v), and
@@ -173,7 +174,7 @@ Done
 #### Example 3
 
 ```bash
-build/nomadcap -Ov -f nomad.pcapng
+nomadcap -Ov -f nomad.pcapng
 ```
 
 Read from offline file (-f) `nomad.pcapng` in verbose mode (-v) with OUI look up (-O).
@@ -215,7 +216,7 @@ Done
 #### Example 4
 
 ```bash
-sudo build/nomadcap -Ov -j -1 -t
+sudo nomadcap -Ov -j -1 -t
 ```
 
 Capture single match (-1) with organization details (-O) in verbose (-v) JSON mode (-j), with
@@ -248,4 +249,3 @@ timestamps (-t). JSON mode prints a JSON object with capture details and results
   "version": "0.1"
 }%
 ```
-

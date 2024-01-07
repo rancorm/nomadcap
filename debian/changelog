@@ -1,5 +1,13 @@
+nomadcap (0.2-1) unstable; urgency=low
+
+  * JSON output mode.
+  * Default to duration capture (-d).
+  * ISO 8601 timestamps (-t).
+
+ -- Jonathan Cormier <jonathan@cormier.co>  Sun, 07 Jan 2024 16:26:00 -0400
+
 nomadcap (0.1-1) unstable; urgency=low
 
   * Initial release.
 
- -- Jonathan Cormier <jonathan@cormier.co>  Sat, 01 Jan 2024 12:00:00 +0000
+ -- Jonathan Cormier <jonathan@cormier.co>  Wed, 03 Jan 2024 11:47:00 -0400
