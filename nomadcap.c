@@ -828,6 +828,8 @@ int main(int argc, char *argv[]) {
   }
 #endif
 
+  /* Notify user of job done and exit */
+  NOMADCAP_STDOUT_V(np, "Done\n");
   nomadcap_exit(np, EXIT_SUCCESS);
 }
 

@@ -130,6 +130,7 @@ ARP announcement, ignoring...
 
 Packets received: 5
 Packets dropped: 0
+Done
 ```
 
 #### Example 2
@@ -160,6 +161,7 @@ Local traffic, ignoring...
 
 Packets received: 10
 Packets dropped: 0
+Done
 ```
 
 #### Example 3
@@ -202,6 +204,7 @@ Local traffic, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 Reached end of capture file: nomad.pcapng
+Done
 ```
 #### Example 4
 
