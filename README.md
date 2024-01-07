@@ -21,6 +21,19 @@ requests that are not intended for the local network.
 
 ## Get Started
 
+
+### Debian
+
+Download from the [latest release](https://github.com/jcormir/nomadcap/releases/latest) Debian package (.deb) and
+install using `dpkg` or your favourite APT front-end.
+
+```bash
+set VER="0.1-1"
+sudo dpkg -i nomadcap_${VER}_amd64.deb
+```
+
+### Compile
+
 Install build essentials and PCAP library with headers.
 
 ```bash
@@ -188,7 +201,7 @@ Reached end of capture file: nomad.pcapng
 ```
 #### Example 4
 
-```sh
+```bash
 sudo build/nomadcap -Ov -j -1
 ```
 
