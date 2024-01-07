@@ -24,7 +24,7 @@ requests that are not intended for the local network.
 
 ### Debian
 
-Download from the [latest release](https://github.com/jcormir/nomadcap/releases/latest) Debian package (.deb) and
+Download the [latest release](https://github.com/jcormir/nomadcap/releases/latest) Debian package (.deb) and
 install using `dpkg` or your favourite APT front-end.
 
 ```bash

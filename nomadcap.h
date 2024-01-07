@@ -22,8 +22,26 @@
 #define NOMADCAP_UNKNOWN "\x00\x00\x00\x00\x00\x00"
 #define NOMADCAP_BROADCAST "\xff\xff\xff\xff\xff\xff"
 
-/* Application specific */
-#define NOMADCAP_OPTS "LOApai:n:m:f:dmhvV1j"
+/*
+Application flags:
+
+L - List interfaces
+O - OUI look up
+A - Monitor for all networks
+p - Process ARP probes
+a - Process ARP announcments
+i - Specific interface
+n - Capture network
+m - Capture subnet
+f - Offline capture file
+d - Capture duration time
+h - Help screen
+v - Verbose mode
+V - Version
+1 - Single match
+j - JSON mode
+*/
+#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1j"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
