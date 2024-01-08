@@ -246,6 +246,6 @@ timestamps (-t). JSON mode prints a JSON object with capture details and results
     "pkts_recv": 4,
     "pkts_drop": 0
   },
-  "version": "0.1"
+  "version": "0.2"
 }%
 ```

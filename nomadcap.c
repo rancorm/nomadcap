@@ -520,11 +520,16 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
       /* Check for alternative ARP reply announcements */
       if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REPLY &&
         memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
-        memcmp(arp->arp_sha, arp->arp_tha, arp->ea_hdr.ar_hln) == 0 &&
-        NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
-        NOMADCAP_STDOUT_V(np, "ARP announcement (reply), ignoring...\n");
+        memcmp(arp->arp_sha, arp->arp_tha, arp->ea_hdr.ar_hln) == 0) {
+          /* Not processing ARP announcments */
+          if (NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
+            NOMADCAP_STDOUT_V(np, "ARP announcement (reply), ignoring...\n");
 
-        return 0;
+            return 0;
+          }
+
+          /* Interesting ARP reply */
+          return 1;
       }
 
       /* Only looking for ARP requests */
