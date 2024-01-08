@@ -513,8 +513,20 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
 
 int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
                          struct ether_arp *arp) {
+  /* Check for packet headers */
   if (np->ph.caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
+    /* Check for broadcasts */
     if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
+      /* Check for alternative ARP reply announcements */
+      if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REPLY &&
+        memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
+        memcmp(arp->arp_sha, arp->arp_tha, arp->ea_hdr.ar_hln) == 0 &&
+        NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
+        NOMADCAP_STDOUT_V(np, "ARP announcement (reply), ignoring...\n");
+
+        return 0;
+      }
+
       /* Only looking for ARP requests */
       if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
         NOMADCAP_STDOUT_V(np, "Non ARP request, ignoring...\n");
@@ -744,23 +756,20 @@ int main(int argc, char *argv[]) {
   NOMADCAP_JSON_PACK(np, "listening_on", json_string(np->device));
 #endif /* USE_LIBJANSSON */
 
-  /* Network details and timestamp (verbose only)... */
-  if (NOMADCAP_FLAG(np, VERBOSE)) {
-    /* Output network details */
-    nomadcap_netprint(np);
+  /* Network details */
+  nomadcap_netprint(np);
 
-    /* Capture timestamp */
-    memset(ts, 0, sizeof(ts));
+  /* Started at timestamp */
+  memset(ts, 0, sizeof(ts));
 
-    nomadcap_iso8601(np, ts, sizeof(ts));
-    NOMADCAP_STDOUT(np, "Started at: %s\n", ts);
+  nomadcap_iso8601(np, ts, sizeof(ts));
+  NOMADCAP_STDOUT(np, "Started at: %s\n", ts);
 
 #ifdef USE_LIBJANSSON
-    /* Add capture start timestamp to JSON object */
-    if (NOMADCAP_FLAG(np, JSON))
-      NOMADCAP_JSON_PACK(np, "started_at", json_string(ts));
+  /* Add start at timestamp to JSON object */
+  if (NOMADCAP_FLAG(np, JSON))
+    NOMADCAP_JSON_PACK(np, "started_at", json_string(ts));
 #endif /* USE_LIBJANSSON */
-  }
 
   /* Loop */
   while (loop) {

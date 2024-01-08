@@ -1,8 +1,8 @@
 # nomadcap
 
-PCAP tool that aids in locating misconfigured network stacks.
+[PCAP](https://en.wikipedia.org/wiki/Pcap) tool that aids in locating misconfigured network stacks.
 
-The tool's function is to identify and capture Address Resolution Protocol (ARP)
+The tool's function is to identify and capture [Address Resolution Protocol](https://en.wikipedia.org/wiki/Address_Resolution_Protocol) (ARP)
 requests that are not intended for the local network.
 
 ## Features
@@ -12,11 +12,11 @@ requests that are not intended for the local network.
 - Network (-n) and netmask (-m) override
 - Run capture for a duration (-d)
 - Exit on single match (-1)
-- MAC/OUI to organization look up using IEEE OUI data (-O) - *libcsv*
+- MAC/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv*
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
-- JSON output (-j) - *libjansson*
+- [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
 - Verbose mode (-v)
 
 ## Dependencies

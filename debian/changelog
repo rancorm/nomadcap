@@ -1,7 +1,7 @@
 nomadcap (0.2-1) unstable; urgency=low
 
   * JSON output mode.
-  * Default to duration capture (-d).
+  * Default to duration capture (-d 0 to capture forever).
   * ISO 8601 timestamps (-t).
 
  -- Jonathan Cormier <jonathan@cormier.co>  Sun, 07 Jan 2024 16:26:00 -0400

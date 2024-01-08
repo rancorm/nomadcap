@@ -1,3 +1,3 @@
-nomadcap-dbgsym_0.1-1_amd64.deb debug optional automatic=yes
-nomadcap_0.1-1_amd64.buildinfo utils optional
-nomadcap_0.1-1_amd64.deb utils optional
+nomadcap-dbgsym_0.2-1_amd64.deb debug optional automatic=yes
+nomadcap_0.2-1_amd64.buildinfo utils optional
+nomadcap_0.2-1_amd64.deb utils optional
