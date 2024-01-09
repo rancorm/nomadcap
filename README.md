@@ -31,7 +31,7 @@ requests that are not intended for the local network.
 ### Debian
 
 Download the [latest release](https://github.com/jcormir/nomadcap/releases/latest) Debian package (.deb) and
-install using `dpkg` or your favourite APT front-end.
+install using `dpkg` or your favourite [APT](https://en.wikipedia.org/wiki/APT_(software)) front-end.
 
 ```bash
 set VER="0.1-1"

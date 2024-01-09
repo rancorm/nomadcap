@@ -39,7 +39,7 @@ extern int optopt;
 /* Global termination control */
 int loop = 1;
 
-uint32_t nomadcap_addr2uint(nomadcap_pack_t *pack, char *addr) {
+uint32_t nomadcap_addr2uint(nomadcap_pack_t *np, char *addr) {
   int i;
   uint32_t result = 0;
   char *token;
@@ -113,8 +113,6 @@ nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
   /* Convert to char[] for string compare */
   snprintf(oui, sizeof(oui), "%02X%02X%02X", arp->arp_sha[0], arp->arp_sha[1],
            arp->arp_sha[2]);
-
-  oui[6] = '\0';
 
   /* Check OUI cache for a match */
   for (cindex = 0; np->oui_cache[cindex]; cindex++) {
@@ -404,12 +402,13 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   memset(ts, 0, sizeof(ts));
 
   /* Print address to their respective buffers */
-  nomadcap_anprint(np, src_ip, sizeof(src_ip) - 1, arp->arp_spa, 4, '.', 0);
-  nomadcap_anprint(np, src_ha, sizeof(src_ha) - 1, arp->arp_sha, ETH_ALEN, ':', 1);
-  nomadcap_anprint(np, tgt_ip, sizeof(tgt_ip) - 1, arp->arp_tpa, 4, '.', 0);
-  nomadcap_iso8601(np, ts, sizeof(ts));
+  nomadcap_anprint(np, src_ip, sizeof(src_ip), arp->arp_spa, 4, '.', 0);
+  nomadcap_anprint(np, src_ha, sizeof(src_ha), arp->arp_sha, ETH_ALEN, ':', 1);
+  nomadcap_anprint(np, tgt_ip, sizeof(tgt_ip), arp->arp_tpa, 4, '.', 0);
 
   /* Timestamp */
+  nomadcap_iso8601(np, ts, sizeof(ts));
+  
   if (NOMADCAP_FLAG(np, TS))
     NOMADCAP_STDOUT(np, "%s - ", ts);
 
@@ -821,8 +820,8 @@ int main(int argc, char *argv[]) {
     if (pcap_stats(np->p, &ps) == -1) {
       NOMADCAP_STDERR(np, "pcap_stats: %s\n", pcap_geterr(np->p));
     } else {
-      NOMADCAP_STDOUT(np, "\nPackets received: %d\n", ps.ps_recv);
-      NOMADCAP_STDOUT(np, "Packets dropped: %d\n", ps.ps_drop);
+      NOMADCAP_STDOUT(np, "\nPackets received: %'d\n", ps.ps_recv);
+      NOMADCAP_STDOUT(np, "Packets dropped: %'d\n", ps.ps_drop);
 
 #ifdef USE_LIBJANSSON
       /* Add PCAP statistics to JSON object */
@@ -953,7 +952,7 @@ void nomadcap_signals(nomadcap_pack_t *np) {
 
   /* Duration alarm */
   if (np->duration > 0) {
-    NOMADCAP_STDOUT_V(np, "Duration: %d seconds\n", np->duration);
+    NOMADCAP_STDOUT_V(np, "Duration: %'d seconds\n", np->duration);
 
 #ifdef USE_LIBJANSSON
     if (NOMADCAP_FLAG(np, JSON))
