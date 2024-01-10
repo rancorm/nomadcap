@@ -321,6 +321,7 @@ void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
     strftime(ts, ts_size, "%Y-%m-%dT%I:%M:%S.", timeinfo);
 
     /* Append milliseconds */
+    gettimeofday(&tv, NULL);
     snprintf(ts + 20, ts_size - 20, "%03d", tv.tv_usec / 1000);
   
      /* Append timezone offset */
