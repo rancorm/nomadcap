@@ -42,7 +42,7 @@ V - Version
 j - JSON mode
 t - ISO 8601 timestamps
 */
-#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1jt"
+#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1jtu"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -54,11 +54,11 @@ t - ISO 8601 timestamps
 #define NOMADCAP_FLAGS_ANNOUNCE 0x10
 #define NOMADCAP_FLAGS_FILE 0x20
 #define NOMADCAP_FLAGS_ONE 0x40
-#define NOMADCAP_FLAGS_NETWORK 0x80
-#define NOMADCAP_FLAGS_NETMASK 0x100
+#define NOMADCAP_FLAGS_NETWORK 0x100
+#define NOMADCAP_FLAGS_NETMASK 0x200
 
 #ifdef USE_LIBCSV
-#define NOMADCAP_FLAGS_OUI 0x200
+#define NOMADCAP_FLAGS_OUI 0x400
 
 /* IEEE OUI path & files */
 #define NOMADCAP_OUI_PATH "/usr/share/ieee-data/"
@@ -73,10 +73,10 @@ t - ISO 8601 timestamps
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
-#define NOMADCAP_FLAGS_JSON 0x400
+#define NOMADCAP_FLAGS_JSON 0x1000
 #endif /* USE_LIBJANSSON */
 
-#define NOMADCAP_FLAGS_TS 0x800
+#define NOMADCAP_FLAGS_TS 0x2000
 
 #define NOMADCAP_VERSION "0.2"
 
@@ -122,6 +122,9 @@ typedef struct nomadcap_pack {
   pcap_t *p;
   struct pcap_pkthdr ph;
   struct bpf_program code;
+
+  /* Timestamp function pointer (localtime or gmtime)*/
+  struct tm *(*ts_func)(const time_t *);
 
   bpf_u_int32 localnet, netmask;
 } nomadcap_pack_t;

@@ -17,7 +17,7 @@ requests that are not intended for the local network.
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
 - [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
-- ISO 8601 timestamps (-t).
+- ISO 8601 timestamps both local (-t) and UTC (-u).
 - Verbose mode (-v)
 
 ## Dependencies
@@ -86,7 +86,7 @@ nomadcap -h
 ```text
 nomadcap v0.2 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OjApa1tLvV]
+Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OjApa1tuLvV]
 
         -i INTF         Capture on specific interface
         -n NETWORK      Capture network (e.g. 192.0.2.0)
@@ -99,6 +99,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -a              Process ARP announcements
         -1              Exit after single match
         -t              ISO 8601 timestamps
+        -u              ISO 8601 timestamps (UTC)
         -L              List available interfaces
         -j              JSON output
         -v              Verbose mode
@@ -128,7 +129,7 @@ Duration: 60 seconds
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
-Started at: 2024-01-04T08:02:20Z
+Started at: 1982-06-26T08:50:09.885-0400
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 ARP announcement, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
@@ -159,7 +160,7 @@ Loaded 32,531 OUIs
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
-Started at: 2024-01-05T20:02:25Z
+Started at: 2024-01-11T04:20:09.885-0400
 Local traffic, ignoring...
 Local traffic, ignoring...
 Local traffic, ignoring...
@@ -196,7 +197,7 @@ Loading capture file: nomad.pcapng
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
-Started at: 2024-01-06T22:07:25Z
+Started at: 2024-01-06T02:50:09.885-0400
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
@@ -238,11 +239,11 @@ timestamps (-t). JSON mode prints a JSON object with capture details and results
       "src_ip": "10.0.70.252",
       "src_ha": "a4:2a:95:15:c9:10",
       "tgt_ip": "10.0.70.1",
-      "ts": "2024-01-06T22:05:11Z",
+      "ts": "2024-01-06T02:50:09.885-0400",
       "org": "D-Link International"
     }
   ],
-  "started_at": "2024-01-06T22:04:40Z",
+  "started_at": "2024-01-06T01:50:03.245-0400",
   "stats": {
     "pkts_recv": 4,
     "pkts_drop": 0

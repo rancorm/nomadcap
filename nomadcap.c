@@ -381,10 +381,12 @@ void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
     time_t rawtime;
     struct tm *timeinfo;
     struct timeval tv;
-
+    
     /* Get the current time */
     time(&rawtime);
-    timeinfo = localtime(&rawtime);
+
+    /* Call timestamp function (default localtime) */
+    timeinfo = np->ts_func(&rawtime);
 
     /* Format the time as a string in ISO 8601 format */
     strftime(ts, ts_size, "%Y-%m-%dT%I:%M:%S.", timeinfo);
@@ -429,7 +431,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "j");
 #endif /* USE_LIBJANSSON */
 
-  NOMADCAP_STDOUT(np, "Apa1tLvV]\n\n");
+  NOMADCAP_STDOUT(np, "Apa1tuLvV]\n\n");
 
   NOMADCAP_STDOUT(np, "\t-i INTF\t\tCapture on specific interface\n");
   NOMADCAP_STDOUT(np, "\t-n NETWORK\tCapture network (e.g. 192.0.2.0)\n");
@@ -447,6 +449,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
   NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
   NOMADCAP_STDOUT(np, "\t-t\t\tISO 8601 timestamps\n");
+  NOMADCAP_STDOUT(np, "\t-u\t\tISO 8601 timestamps (UTC)\n");
   NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
 
 #ifdef USE_LIBJANSSON
@@ -580,6 +583,9 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
 
     /* Save program name */
     np->pname = basename(pname);
+
+    /* Defualt to localtime function */
+    np->ts_func = localtime;
 
     return np;
   }
@@ -748,6 +754,10 @@ int main(int argc, char *argv[]) {
 #endif /* USE_LIBJANSSON */
     case 't':
       np->flags |= NOMADCAP_FLAGS_TS;
+      break;
+    case 'u':
+      /* Set timestamp function to gmtime for UTC */
+      np->ts_func = gmtime;
       break;
     case 'L': /* List interfaces */
       nomadcap_printdevs(np, errbuf);
