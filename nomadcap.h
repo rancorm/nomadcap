@@ -212,9 +212,9 @@ typedef struct nomadcap_pack {
 /* ISO 8601 timestamp string length */
 #define NOMADCAD_TSLEN 29
 
-void nomadcap_finddev(nomadcap_pack_t *np, char *errbuff);
-void nomadcap_signals(nomadcap_pack_t *np);
-void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf);
-void nomadcap_netprint(nomadcap_pack_t *np);
+void nomadcap_finddev(nomadcap_pack_t *, char *);
+void nomadcap_signals(nomadcap_pack_t *);
+void nomadcap_pcap_setup(nomadcap_pack_t *, char *);
+void nomadcap_netprint(nomadcap_pack_t *);
 
 #endif /* __NOMADCAP_H */

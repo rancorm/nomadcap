@@ -104,6 +104,75 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
   exit(code);
 }
 
+void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
+  /* Set the locale to the user default */
+  setlocale(LC_NUMERIC, "");
+
+  /* Turn of duration capture for offline capture */
+  if (NOMADCAP_FLAG(np, FILE))
+    np->duration = 0;
+
+#ifdef USE_LIBJANSSON
+  /* Initialize JSON */
+  if (NOMADCAP_FLAG(np, JSON)) {
+    np->json = json_object();
+
+    /* Start with empty results array */
+    NOMADCAP_JSON_PACK(np, "results", json_array());
+  }
+#endif /* USE_LIBJANSSON */
+
+  /* Warn if using file capture with device network and mask */
+  if (NOMADCAP_FLAG(np, FILE) &&
+    NOMADCAP_FLAG_NOT(np, NETWORK))
+      NOMADCAP_WARNING(np, "WARNING: Using -f (file) capture without -n (network) switch\n");
+
+  /* Exit with message to use netmask switch */
+  if (NOMADCAP_FLAG(np, NETWORK) && 
+    NOMADCAP_FLAG_NOT(np, NETMASK))
+      NOMADCAP_FAILURE(np, "Use -m (netmask) with -n (network) switch\n");
+
+  /* Leave it to libpcap to find an interface */
+  if (np->device == NULL)
+    nomadcap_finddev(np, errbuf);
+
+  NOMADCAP_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
+
+#ifdef USE_LIBJANSSON
+  /* Add flags to JSON object */
+  if (NOMADCAP_FLAG(np, JSON))
+    NOMADCAP_JSON_PACK_V(np, "flags", json_integer(np->flags));
+#endif /* USE_LIBJANSSON */
+
+  /* Load IEEE OUI data */
+#ifdef USE_LIBCSV
+  /* Load OUIs from IEEE CSV file */
+  if (NOMADCAP_FLAG(np, OUI)) {
+    NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n",
+                      NOMADCAP_OUI_FILEPATH);
+
+    nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
+
+    NOMADCAP_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap_oui_size(np));
+
+#ifdef USE_LIBJANSSON
+    /* Add number of loaded OUIs to JSON object */
+    if (NOMADCAP_FLAG(np, JSON)) {
+      NOMADCAP_JSON_PACK_V(np, "oui_file", json_string(NOMADCAP_OUI_FILEPATH));
+      NOMADCAP_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(np)));
+    }
+#endif /* USE_LIBJANSSON */
+  }
+#endif /* USE_LIBCSV */
+
+  /* Open device/file, set filter, check datalink, and
+     lookup network and mask */
+  nomadcap_pcap_setup(np, errbuf);
+
+  /* Setup signal handlers */
+  nomadcap_signals(np);
+}
+
 #ifdef USE_LIBCSV
 nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
                                     struct ether_arp *arp) {
@@ -694,74 +763,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /* Set the locale to the user default */
-  setlocale(LC_NUMERIC, "");
+  /* Setup application for capture */
+  nomadcap_setup(np, errbuf);
 
-  /* Turn of duration capture for offline capture */
-  if (NOMADCAP_FLAG(np, FILE))
-    np->duration = 0;
-
-#ifdef USE_LIBJANSSON
-  /* Initialize JSON */
-  if (NOMADCAP_FLAG(np, JSON)) {
-    np->json = json_object();
-
-    /* Start with empty results array */
-    NOMADCAP_JSON_PACK(np, "results", json_array());
-  }
-#endif /* USE_LIBJANSSON */
-
-  /* Warn if using file capture with device network and mask */
-  if (NOMADCAP_FLAG(np, FILE) &&
-    NOMADCAP_FLAG_NOT(np, NETWORK))
-      NOMADCAP_WARNING(np, "WARNING: Using -f (file) capture without -n (network) switch\n");
-
-  /* Exit with message to use netmask switch */
-  if (NOMADCAP_FLAG(np, NETWORK) && 
-    NOMADCAP_FLAG_NOT(np, NETMASK))
-      NOMADCAP_FAILURE(np, "Use -m (netmask) with -n (network) switch\n");
-
-  /* Leave it to libpcap to find an interface */
-  if (np->device == NULL)
-    nomadcap_finddev(np, errbuf);
-
-  NOMADCAP_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
-
-#ifdef USE_LIBJANSSON
-  /* Add flags to JSON object */
-  if (NOMADCAP_FLAG(np, JSON))
-    NOMADCAP_JSON_PACK_V(np, "flags", json_integer(np->flags));
-#endif /* USE_LIBJANSSON */
-
-  /* Load IEEE OUI data */
-#ifdef USE_LIBCSV
-  /* Load OUIs from IEEE CSV file */
-  if (NOMADCAP_FLAG(np, OUI)) {
-    NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n",
-                      NOMADCAP_OUI_FILEPATH);
-
-    nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
-
-    NOMADCAP_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap_oui_size(np));
-
-#ifdef USE_LIBJANSSON
-    /* Add number of loaded OUIs to JSON object */
-    if (NOMADCAP_FLAG(np, JSON)) {
-      NOMADCAP_JSON_PACK_V(np, "oui_file", json_string(NOMADCAP_OUI_FILEPATH));
-      NOMADCAP_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(np)));
-    }
-#endif /* USE_LIBJANSSON */
-  }
-#endif /* USE_LIBCSV */
-
-  /* Open device/file, set filter, check datalink, and
-     lookup network and mask */
-  nomadcap_pcap_setup(np, errbuf);
-
-  /* Setup signal handlers */
-  nomadcap_signals(np);
-
-  /* Current state */
+  /* Current listening device */
   NOMADCAP_STDOUT(np, "Listening on: %s\n", np->device);
 
 #ifdef USE_LIBJANSSON
