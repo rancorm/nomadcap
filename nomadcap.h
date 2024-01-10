@@ -209,7 +209,8 @@ typedef struct nomadcap_pack {
 /* Ethernet address string length (octets + colons + null)*/
 #define NOMADCAP_ETH_ADDRSTRLEN (12 + 5 + 1)
 
-#define NOMADCAD_TSLEN 21
+/* ISO 8601 timestamp string length */
+#define NOMADCAD_TSLEN 29
 
 void nomadcap_finddev(nomadcap_pack_t *np, char *errbuff);
 void nomadcap_signals(nomadcap_pack_t *np);

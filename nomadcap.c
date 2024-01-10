@@ -311,13 +311,20 @@ int nomadcap_signal(int signo, void (*handler)()) {
 void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
     time_t rawtime;
     struct tm *timeinfo;
+    struct timeval tv;
 
     /* Get the current time */
     time(&rawtime);
     timeinfo = localtime(&rawtime);
 
     /* Format the time as a string in ISO 8601 format */
-    strftime(ts, ts_size, "%Y-%m-%dT%H:%M:%SZ", timeinfo);
+    strftime(ts, ts_size, "%Y-%m-%dT%I:%M:%S.", timeinfo);
+
+    /* Append milliseconds */
+    snprintf(ts + 20, ts_size - 20, "%03d", tv.tv_usec / 1000);
+  
+     /* Append timezone offset */
+    strftime(ts + 23, ts_size - 23, "%z", timeinfo);
 }
 
 void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
