@@ -17,6 +17,7 @@ requests that are not intended for the local network.
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
 - [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
+- ISO 8601 timestamps (-t).
 - Verbose mode (-v)
 
 ## Dependencies

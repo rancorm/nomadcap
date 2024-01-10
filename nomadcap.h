@@ -212,6 +212,13 @@ typedef struct nomadcap_pack {
 /* ISO 8601 timestamp string length */
 #define NOMADCAD_TSLEN 29
 
+/* Function prototypes */
+#ifdef USE_LIBJANSSON
+int nomadcap_oui_load(nomadcap_pack_t *, char *);
+nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *, struct ether_arp *);
+uint32_t nomadcap_oui_size(nomadcap_pack_t *);
+#endif /* USE_LIBJANSSON */
+
 void nomadcap_finddev(nomadcap_pack_t *, char *);
 void nomadcap_signals(nomadcap_pack_t *);
 void nomadcap_pcap_setup(nomadcap_pack_t *, char *);
