@@ -41,7 +41,7 @@ int loop = 1;
 
 uint32_t nomadcap_addr2uint(nomadcap_pack_t *np, char *addr) {
   int i;
-  uint32_t result = 0;
+  uint32_t result;
   char *token;
   char ip_copy[INET_ADDRSTRLEN];
 
@@ -53,7 +53,7 @@ uint32_t nomadcap_addr2uint(nomadcap_pack_t *np, char *addr) {
   token = strtok(ip_copy, ".");
 
   /* Loop over tokens */
-  for (i = 0; i < 4 && token != NULL; i++) {
+  for (result = 0, i = 0; i < 4 && token != NULL; i++) {
       result |= (atoi(token) << (24 - i * 8));
       token = strtok(NULL, ".");
   }
@@ -62,6 +62,10 @@ uint32_t nomadcap_addr2uint(nomadcap_pack_t *np, char *addr) {
 }
 
 void nomadcap_exit(nomadcap_pack_t *np, int code) {
+#ifdef USE_LIBCSV
+  int i;
+#endif /* USE_LIBCSV */
+
   if (np) {
     /* Free strings */
     if (np->device)
@@ -72,7 +76,7 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
 #ifdef USE_LIBCSV
     if (np->oui_data) {
       /* Loop throuh fields and free the memory */
-      for (int i = 0; i < np->oui_num; i++) {
+      for (i = 0; i < np->oui_num; i++) {
         if (np->oui_data[i].assignment)
           free(np->oui_data[i].assignment);
         if (np->oui_data[i].org_address)
@@ -188,12 +192,15 @@ nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
     assignment = np->oui_cache[cindex]->assignment;
 
     if (strncmp(oui, assignment, 6) == 0) {
-      return np->oui_cache[cindex];
+	/* Increment cache OUI entry count */
+	np->oui_cache[cindex]->count++;
+
+	return np->oui_cache[cindex];
     }
   }
 
   /* Loop through OUI entries looking for a match */
-  for (index = 0; index < np->oui_num - 1; index++) {
+  for (index = 0; index < np->oui_num; index++) {
     assignment = np->oui_data[index].assignment;
 
     /* Increment entry count and return the entry */
@@ -332,6 +339,7 @@ void nomadcap_json_print(nomadcap_pack_t *np) {
   /* Output and free */
   if (json_string) {
     printf("%s", json_string);
+
     free(json_string);
   }
 }
@@ -400,7 +408,9 @@ void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
 }
 
 void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
-  for (int i = 0; i < size; i++) {
+  int i;
+
+  for (i = 0; i < size; i++) {
     /* Store hex or decimal */
     if (hex) {
       snprintf(buf + strlen(buf), buf_size, "%02x", addr[i]);
@@ -449,7 +459,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
   NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
   NOMADCAP_STDOUT(np, "\t-t\t\tISO 8601 timestamps\n");
-  NOMADCAP_STDOUT(np, "\t-u\t\tISO 8601 timestamps (UTC)\n");
+  NOMADCAP_STDOUT(np, "\t-u\t\tShow timestamps in UTC\n");
   NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
 
 #ifdef USE_LIBJANSSON
@@ -689,7 +699,7 @@ int main(int argc, char *argv[]) {
   struct ether_arp *arp;
   char errbuf[PCAP_ERRBUF_SIZE], ts[NOMADCAD_TSLEN];
   uint8_t *pkt;
-  int c = -1, is_local = -1;
+  int c, is_local;
 
 #ifdef USE_LIBJANSSON
   json_t *stats;

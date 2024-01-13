@@ -99,7 +99,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -a              Process ARP announcements
         -1              Exit after single match
         -t              ISO 8601 timestamps
-        -u              ISO 8601 timestamps (UTC)
+        -u              Show timestamps in UTC
         -L              List available interfaces
         -j              JSON output
         -v              Verbose mode
