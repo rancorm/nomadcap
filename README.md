@@ -63,7 +63,7 @@ sudo apt install libjansson4 libjansson-dev
 Clone this repository and run `make`. Results are in the directory `build/`.
 
 ```bash
-git clone https://github.com/jcormir/nomadcap.git
+git clone https://github.com/rancorm/nomadcap.git
 cd nomadcap
 make
 build/nomadcap -h
