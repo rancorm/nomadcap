@@ -120,7 +120,6 @@ typedef struct nomadcap_pack {
 
   /* PCAP */
   pcap_t *p;
-  struct pcap_pkthdr ph;
   struct bpf_program code;
 
   /* Timestamp function pointer (localtime or gmtime)*/

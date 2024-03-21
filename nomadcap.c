@@ -604,9 +604,9 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
 }
 
 int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
-                         struct ether_arp *arp) {
+                         struct ether_arp *arp, const struct pcap_pkthdr *ph) {
   /* Check for packet headers */
-  if (np->ph.caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
+  if (ph->caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
     /* Check for broadcasts */
     if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
       /* Check for alternative ARP reply announcements */
@@ -631,15 +631,16 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
         return 0;
       }
 
-      /* Check for ARP probe - ARP sender MAC is all zeros */
-      if (memcmp(arp->arp_sha, NOMADCAP_NONE, arp->ea_hdr.ar_hln) == 0 &&
+      /* Check for ARP probe */
+      if (memcmp(arp->arp_spa, NOMADCAP_NONE, arp->ea_hdr.ar_pln) == 0 &&
+	  memcmp(arp->arp_tha, NOMADCAP_UNKNOWN, arp->ea_hdr.ar_hln) == 0 &&
           NOMADCAP_FLAG_NOT(np, PROBES)) {
         NOMADCAP_STDOUT_V(np, "ARP probe, ignoring...\n");
 
         return 0;
       }
 
-      /* Check for ARP announcement - ARP sender and target IP match */
+      /* Check for ARP announcements */
       if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
           NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
         NOMADCAP_STDOUT_V(np, "ARP announcement, ignoring...\n");
@@ -692,14 +693,44 @@ void nomadcap_printdevs(nomadcap_pack_t *np, char *errbuf) {
   pcap_freealldevs(devs);
 }
 
+void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_char *pkt) {
+  struct ether_header *eth;
+  struct ether_arp *arp;
+  nomadcap_pack_t *np = (nomadcap_pack_t *)user;
+  int is_local;
+
+  /* Cast packet to Ethernet header */
+  eth = (struct ether_header *)pkt;
+
+  /* Cast packet to ARP header */
+  arp = (struct ether_arp *)(pkt + sizeof(struct ether_header));
+
+  /* Check for interesting traffic */
+  if (nomadcap_interesting(np, eth, arp, h)) {
+    /* Check if ARP request is not local */
+    is_local = nomadcap_islocalnet(np, arp);
+
+    /* Output results if not local or all networks flag set */
+    if (is_local == 0 || NOMADCAP_FLAG(np, ALLNET)) {
+      nomadcap_output(np, arp);
+
+      /* Terminate loop if only looking for one match */
+      if (NOMADCAP_FLAG(np, ONE))
+	pcap_breakloop(np->p);
+    } else {
+      NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
+    }
+  }
+
+  if (!loop) pcap_breakloop(np->p);
+}
+
 int main(int argc, char *argv[]) {
   nomadcap_pack_t *np;
   struct pcap_stat ps;
-  struct ether_header *eth;
-  struct ether_arp *arp;
   char errbuf[PCAP_ERRBUF_SIZE], ts[NOMADCAD_TSLEN];
   uint8_t *pkt;
-  int c, is_local;
+  int c;
 
 #ifdef USE_LIBJANSSON
   json_t *stats;
@@ -808,45 +839,9 @@ int main(int argc, char *argv[]) {
     NOMADCAP_JSON_PACK(np, "started_at", json_string(ts));
 #endif /* USE_LIBJANSSON */
 
-  /* Loop */
-  while (loop) {
-    pkt = (uint8_t *)pcap_next(np->p, &np->ph);
-
-    /* Bail if we have no data and in offline mode */
-    if (pkt == NULL && NOMADCAP_FLAG(np, FILE)) {
-      NOMADCAP_STDOUT_V(np, "Reached end of file: %s\n", np->filename);
-
-      /* Prevents looping forever */
-      loop = 0;
-    }
-
-    /* Catch timer expiring with no data in packet buffer */
-    if (pkt == NULL)
-      continue;
-
-    /* Cast packet to Ethernet header */
-    eth = (struct ether_header *)pkt;
-
-    /* Cast packet to ARP header */
-    arp = (struct ether_arp *)(pkt + sizeof(struct ether_header));
-
-    /* Check for interesting traffic */
-    if (nomadcap_interesting(np, eth, arp)) {
-      /* Check if ARP request is not local */
-      is_local = nomadcap_islocalnet(np, arp);
-
-      /* Output results if not local or all networks flag set */
-      if (is_local == 0 || NOMADCAP_FLAG(np, ALLNET)) {
-        nomadcap_output(np, arp);
-
-        /* Terminate loop if only looking for one match */
-        if (NOMADCAP_FLAG(np, ONE))
-          loop = 0;
-      } else {
-        NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
-      }
-    }
-  }
+  /* Where the magic happens */
+  pcap_loop(np->p, 0, nomadcap_pcap_handler,
+      (u_char *)np);
 
   /* Who doesn't love statistics (verbose only) */
   if (NOMADCAP_FLAG(np, VERBOSE) && NOMADCAP_FLAG_NOT(np, FILE)) {
