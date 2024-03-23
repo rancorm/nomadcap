@@ -35,7 +35,7 @@ Download the [latest release](https://github.com/jcormir/nomadcap/releases/lates
 install using `dpkg` or your favourite [APT](https://en.wikipedia.org/wiki/APT_(software)) front-end.
 
 ```bash
-set VER="0.1-1"
+set VER="0.2-1"
 sudo dpkg -i nomadcap_${VER}_amd64.deb
 ```
 
@@ -212,7 +212,6 @@ Local traffic, ignoring...
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
-Reached end of file: nomad.pcapng
 Done
 ```
 #### Example 4

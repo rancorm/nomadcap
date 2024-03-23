@@ -1,7 +1,8 @@
 nomadcap (0.2-1) unstable; urgency=low
 
-  * JSON output mode.
-  * Default to duration capture (-d 0 to capture forever).
+  * MAC/OUI organization look up (-O).
+  * JSON output mode (-j).
+  * Default to duration capture (-d 0 is forever).
   * ISO 8601 timestamps (-t).
 
  -- Jonathan Cormier <jonathan@cormier.co>  Sun, 07 Jan 2024 16:26:00 -0400

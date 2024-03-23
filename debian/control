@@ -8,8 +8,8 @@ Build-Depends: debhelper (>= 12),
     libcsv-dev,
     libjansson-dev
 Standards-Version: 4.6.1
-Vcs-Browser: https://github.com/jcormir/nomadcap
-Vcs-Git: https://github.com/jcormir/nomadcap.git
+Vcs-Browser: https://github.com/rancorm/nomadcap
+Vcs-Git: https://github.com/rancorm/nomadcap.git
 
 Package: nomadcap
 Architecture: amd64
