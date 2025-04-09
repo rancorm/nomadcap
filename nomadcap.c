@@ -779,8 +779,8 @@ int main(int argc, char *argv[]) {
       np->filename = strdup(optarg);
       break;
     case 'd': /* Capture duration */
-      /* User supplied duration or default */
-      np->duration = optarg ? atoi(optarg) : NOMADCAP_DURATION;
+      /* Convert user supplied duration using special value 0 */
+      np->duration = strtol(optarg, NULL, 0);
       break;
     case 'v': /* Verbose */
       np->flags |= NOMADCAP_FLAGS_VERBOSE;
