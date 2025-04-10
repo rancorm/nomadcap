@@ -16,3 +16,6 @@ build/
 # Capture files
 *.pcap
 *.pcapng
+
+# macOS
+.DS_Store
