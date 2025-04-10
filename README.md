@@ -2,30 +2,39 @@
 
 [PCAP](https://en.wikipedia.org/wiki/Pcap) tool that aids in locating misconfigured network stacks.
 
-The tool's function is to identify and capture [Address Resolution Protocol](https://en.wikipedia.org/wiki/Address_Resolution_Protocol) (ARP)
+The tool's function is to identify [Address Resolution Protocol](https://en.wikipedia.org/wiki/Address_Resolution_Protocol) (ARP)
 requests that are not intended for the local network.
 
 ## Features
 
-- Live capture on specific interface (-i)
-- Offline capture from file (-f)
+- Live capture on specific interface (-i en0)
+- Offline capture from file (-f /path/to/capture.file)
 - Network (-n) and netmask (-m) override
-- Run capture for a duration (-d)
+- Run capture for a duration (-d 60)
 - Exit on single match (-1)
-- MAC/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv*
+- MAC/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv* & *ieee-data* 
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
 - [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
-- ISO 8601 timestamps both local (-t) and UTC (-u).
+- ISO 8601 timestamps both local (-t) and UTC (-u)
 - Verbose mode (-v)
 
 ## Dependencies
 
 - libc6
 - libpcap0.8
-- libcsv3 - *optional*
+- libcsv3 & ieee-data - *optional*
 - libjansson4 - *optional*
+
+### Build Dependencies
+
+If you are compiling from source you will need the following packages.
+
+- build-essential
+- libpcap-dev
+- libcsv-dev - *optional*
+- libjansson-dev - *optional*
 
 ## Get Started
 
@@ -39,9 +48,9 @@ set VER="0.2-1"
 sudo dpkg -i nomadcap_${VER}_amd64.deb
 ```
 
-### Compile
+### Build
 
-Install build essentials and PCAP library with headers.
+Install required build tools, libraries, and headers.
 
 ```bash
 sudo apt update
@@ -106,7 +115,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -V              Version
 ```
 
-### Capture
+### Examples
 
 Run `nomadcap` under sudo, root, or group with permission to perform live capture.
 
@@ -220,8 +229,7 @@ Done
 sudo nomadcap -Ov -j -1 -t
 ```
 
-Capture single match (-1) with organization details (-O) in verbose (-v) JSON mode (-j), with
-timestamps (-t). JSON mode prints a JSON object with capture details and results (if any).
+Capture single match (-1) with organization details (-O), verbose mode (-v), JSON mode (-j), and with timestamps (-t). JSON mode prints a JSON object with capture details and results.
 
 ```text
 {

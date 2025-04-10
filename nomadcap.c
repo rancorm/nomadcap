@@ -112,7 +112,7 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
   /* Set the locale to the user default */
   setlocale(LC_NUMERIC, "");
 
-  /* Turn of duration capture for offline capture */
+  /* Turn off duration capture for offline capture */
   if (NOMADCAP_FLAG(np, FILE))
     np->duration = 0;
 
