@@ -39,6 +39,24 @@ extern int optopt;
 /* Global termination control */
 int loop = 1;
 
+void nomadcap_exec(nomadcap_pack_t *np, char **argv) {
+  pid_t pid = fork();
+  
+  if (pid == 0) {
+    /* Child process */
+    execvp(argv[0], argv);
+    _exit(1);
+  } else if (pid > 0) {
+    NOMADCAP_STDOUT_V(np, "Executing '%s'...\n", argv[0]);
+
+    /* Parent process */
+    int status;
+    waitpid(pid, &status, 0);
+  } else {
+    perror("fork");
+  }
+}
+
 uint32_t nomadcap_addr2uint(nomadcap_pack_t *np, char *addr) {
   int i;
   uint32_t result;
@@ -72,6 +90,8 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
       free(np->device);
     if (np->filename)
       free(np->filename);
+    if (np->binary)
+      free(np->binary);
 
 #ifdef USE_LIBCSV
     if (np->oui_data) {
@@ -141,6 +161,10 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
     nomadcap_finddev(np, errbuf);
 
   NOMADCAP_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
+
+  /* Execute binary on detection */
+  if (np->binary)
+    NOMADCAP_STDOUT_V(np, "Binary: %s\n", np->binary);
 
 #ifdef USE_LIBJANSSON
   /* Add flags to JSON object */
@@ -431,7 +455,8 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 
   /* Command line options */
   NOMADCAP_STDOUT(
-      np, "Usage: %s [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-",
+      np, "Usage: %s [-i INTF] [-n NETWORK -m NETMASK]"
+	  " [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-",
       np->pname);
 #ifdef USE_LIBCSV
   NOMADCAP_STDOUT(np, "O");
@@ -458,6 +483,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "\t-p\t\tProcess ARP probes\n");
   NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
   NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
+  NOMADCAP_STDOUT(np, "\t-x PATH\t\tExecute on detection\n");
   NOMADCAP_STDOUT(np, "\t-t\t\tISO 8601 timestamps\n");
   NOMADCAP_STDOUT(np, "\t-u\t\tShow timestamps in UTC\n");
   NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
@@ -594,8 +620,11 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     /* Save program name */
     np->pname = basename(pname);
 
-    /* Defualt to localtime function */
+    /* Default to localtime function */
     np->ts_func = localtime;
+
+    /* Binary to execute on detections */
+    np->binary = NULL;
 
     return np;
   }
@@ -698,6 +727,8 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
   struct ether_arp *arp;
   nomadcap_pack_t *np = (nomadcap_pack_t *)user;
   int is_local;
+  char sha_str[18], tha_str[18];
+  char spa_str[INET_ADDRSTRLEN], tpa_str[INET_ADDRSTRLEN];
 
   /* Cast packet to Ethernet header */
   eth = (struct ether_header *)pkt;
@@ -714,6 +745,35 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
     if (is_local == 0 || NOMADCAP_FLAG(np, ALLNET)) {
       nomadcap_output(np, arp);
 
+      /* Execute binary on detection */
+      if (np->binary) {
+	/* Build ARP address strings */
+	snprintf(sha_str, sizeof(sha_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+	  arp->arp_sha[0], arp->arp_sha[1], arp->arp_sha[2],
+	  arp->arp_sha[3], arp->arp_sha[4], arp->arp_sha[5]);
+
+	snprintf(tha_str, sizeof(tha_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+	  arp->arp_tha[0], arp->arp_tha[1], arp->arp_tha[2],
+	  arp->arp_tha[3], arp->arp_tha[4], arp->arp_tha[5]);
+	
+	/* Build protocol address strings */
+	inet_ntop(AF_INET, &arp->arp_spa, spa_str, INET_ADDRSTRLEN);
+	inet_ntop(AF_INET, &arp->arp_tpa, tpa_str, INET_ADDRSTRLEN);
+
+	/* Build arguments for binary */
+	/* [nomadcap, <sha>, <spa>, <tha>, <tpa>] */
+	char *args[] = {
+	  np->binary,
+	  sha_str,
+	  spa_str,
+	  tha_str,
+	  tpa_str,
+	  NULL
+	};
+
+	nomadcap_exec(np, args);
+      }
+
       /* Terminate loop if only looking for one match */
       if (NOMADCAP_FLAG(np, ONE))
 	pcap_breakloop(np->p);
@@ -722,6 +782,7 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
     }
   }
 
+  /* Bail */
   if (!loop) pcap_breakloop(np->p);
 }
 
@@ -787,6 +848,9 @@ int main(int argc, char *argv[]) {
       break;
     case '1': /* Single match */
       np->flags |= NOMADCAP_FLAGS_ONE;
+      break;
+    case 'x': /* Execute */
+      np->binary = strdup(optarg);
       break;
 #ifdef USE_LIBJANSSON
     case 'j':

@@ -11,6 +11,7 @@ requests that are not intended for the local network.
 - Offline capture from file (-f /path/to/capture.file)
 - Network (-n) and netmask (-m) override
 - Run capture for a duration (-d 60)
+- Execute script/program on detection (-x /path/to/script.sh)
 - Exit on single match (-1)
 - MAC/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv* & *ieee-data* 
 - Process all networks (-A) as a basic request monitor
@@ -95,7 +96,7 @@ nomadcap -h
 ```text
 nomadcap v0.2 [Mis-configured network stack identification tool]
 
-Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-OjApa1tuLvV]
+Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjApa1tuLvV]
 
         -i INTF         Capture on specific interface
         -n NETWORK      Capture network (e.g. 192.0.2.0)
@@ -107,6 +108,7 @@ Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-
         -p              Process ARP probes
         -a              Process ARP announcements
         -1              Exit after single match
+        -x PATH         Execute on detection
         -t              ISO 8601 timestamps
         -u              Show timestamps in UTC
         -L              List available interfaces
@@ -125,7 +127,7 @@ Run `nomadcap` under sudo, root, or group with permission to perform live captur
 sudo nomadcap -v
 ```
 
-Capture on interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
+Capture on found interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
 In this example `10.0.70.5` is the misconfigured host looking for the default gateway `10.0.70.1`.
 
 Capture for the default duration of 60 seconds.
@@ -229,7 +231,8 @@ Done
 sudo nomadcap -Ov -j -1 -t
 ```
 
-Capture single match (-1) with organization details (-O), verbose mode (-v), JSON mode (-j), and with timestamps (-t). JSON mode prints a JSON object with capture details and results.
+Capture single match (-1) with organization details (-O), verbose mode (-v), JSON mode (-j), and
+with timestamps (-t). JSON mode prints a JSON object with capture details and results.
 
 ```text
 {
@@ -257,4 +260,28 @@ Capture single match (-1) with organization details (-O), verbose mode (-v), JSO
   },
   "version": "0.2"
 }%
+```
+
+#### Example 5
+
+```
+sudo nomadcap -i en0 -d 0 -v -x scripts/echo.sh
+```
+
+Capture forever (-d 0) in verbose mode (-v) on interface `en0` (-i). When there is a
+detection, run the script or program passed to the argument `-x`, in our example
+`echo.sh` which just prints to stdout.
+
+```
+Flags: 0x00000001
+Binary: scripts/echo.sh
+Listening on: en0
+Local network: 192.168.2.0
+Network mask: 255.255.255.0
+Started at: 2025-05-13T05:54:00.091-0300
+Local traffic, ignoring...
+Local traffic, ignoring...
+10.0.80.2 [30:23:03:8d:f5:e3] is looking for 10.0.80.1
+Executing 'scripts/test.sh'...
+Detected host! src: 10.0.80.2 [30:23:03:8d:f5:e3], tgt: 10.0.80.1 [00:00:00:00:00:00]
 ```

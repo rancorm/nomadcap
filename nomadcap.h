@@ -42,7 +42,7 @@ V - Version
 j - JSON mode
 t - ISO 8601 timestamps
 */
-#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1jtu"
+#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1x:jtu"
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -126,6 +126,9 @@ typedef struct nomadcap_pack {
   struct tm *(*ts_func)(const time_t *);
 
   bpf_u_int32 localnet, netmask;
+
+  /* Path to binary */
+  char *binary;
 } nomadcap_pack_t;
 
 #ifdef USE_LIBJANSSON
