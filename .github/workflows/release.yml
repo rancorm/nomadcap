@@ -1,0 +1,73 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # Triggers on tags like v1.0.0
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libpcap-dev libcsv-dev libjansson-dev
+
+      - name: Build binary
+        run: make
+
+      - name: Build Debian package
+        uses: andy5995/gh-action-build-deb@v1
+        with:
+          args: |
+            --no-sign
+            --compression=xz
+
+      - name: Calculate Debian package checksum
+        run: |
+          DEB_FILENAME=$(basename `find output/*deb`)
+          echo "DEB_FILENAME=$DEB_FILENAME" >> $GITHUB_ENV
+          cd output
+          sha256sum "$DEB_FILENAME" > "../$DEB_FILENAME.sha256sum"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DEB_FILENAME }}
+          path: |
+            output/*.deb
+            *deb.sha256sum
+          if-no-files-found: error
+
+  release:
+    needs: build-deb
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nomadcap-deb
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          body: |
+            Automated release for ${{ github.ref_name }}.
+          draft: false
+          prerelease: false
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nomadcap_*.deb
+          tag_name: ${{ github.ref_name }}
