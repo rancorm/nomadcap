@@ -26,7 +26,6 @@ jobs:
         with:
           args: |
             --no-sign
-            --compression=xz
 
       - name: Calculate Debian package checksum
         run: |
