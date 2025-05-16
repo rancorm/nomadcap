@@ -29,10 +29,10 @@ jobs:
 
       - name: Calculate Debian package checksum
         run: |
-          DEB_FILENAME=$(basename `find output/*deb`)
-          echo "DEB_FILENAME=$DEB_FILENAME" >> $GITHUB_ENV
-          cd output
-          sha256sum "$DEB_FILENAME" > "../$DEB_FILENAME.sha256sum"
+          for DEB in output/*.deb; do
+            DEB_FILENAME=$(basename "$DEB")
+            sha256sum "$DEB_FILENAME" > "../$DEB_FILENAME.sha256sum"
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -62,5 +62,5 @@ jobs:
           prerelease: false
           tag_name: ${{ github.ref_name }}
           files: |
-            output/nomadcap_*.deb
+            output/*.deb
             *deb.sha256sum
