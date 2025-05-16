@@ -9,6 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include <locale.h>
+#include <sys/wait.h>
 
 /* basename() */
 #include <libgen.h>
@@ -425,7 +426,7 @@ void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
 
     /* Append milliseconds */
     gettimeofday(&tv, NULL);
-    snprintf(ts + 20, ts_size - 20, "%03d", tv.tv_usec / 1000);
+    snprintf(ts + 20, ts_size - 20, "%03d", (int)(tv.tv_usec / 1000));
   
      /* Append timezone offset */
     strftime(ts + 23, ts_size - 23, "%z", timeinfo);
