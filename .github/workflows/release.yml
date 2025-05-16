@@ -37,7 +37,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.DEB_FILENAME }}
+          name: nomadcap-deb
           path: |
             output/*.deb
             *deb.sha256sum
