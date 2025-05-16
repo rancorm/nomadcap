@@ -6,7 +6,7 @@ BUILD_DIR:=build/
 
 # Compiler stuff
 CC:=$(shell which gcc)
-CFLAGS=-ggdb
+CFLAGS=
 LDFLAGS=-lpcap
 OBJ=$(PROJECT_NAME).o
 
@@ -68,4 +68,4 @@ clean:
 	$(RM) -f $(BUILD_DIR)$(PROJECT_NAME)
 
 deb:
-	$(DPKG_BUILDPKG) $(DPKG_BUILDPKG_FLAGS) 
+	$(DPKG_BUILDPKG) $(DPKG_BUILDPKG_FLAGS)
