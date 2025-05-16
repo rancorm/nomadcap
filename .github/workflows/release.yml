@@ -29,7 +29,8 @@ jobs:
 
       - name: Calculate Debian package checksum
         run: |
-          for DEB in output/*.deb; do
+          cd output/
+          for DEB in *.deb; do
             DEB_FILENAME=$(basename "$DEB")
             sha256sum "$DEB_FILENAME" > "../$DEB_FILENAME.sha256sum"
           done
