@@ -78,7 +78,7 @@ t - ISO 8601 timestamps
 
 #define NOMADCAP_FLAGS_TS 0x2000
 
-#define NOMADCAP_VERSION "0.2"
+#define NOMADCAP_VERSION "0.3"
 
 /* OUI entry */
 typedef struct nomadcap_oui {

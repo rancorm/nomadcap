@@ -45,7 +45,7 @@ Download the [latest release](https://github.com/jcormir/nomadcap/releases/lates
 install using `dpkg` or your favourite [APT](https://en.wikipedia.org/wiki/APT_(software)) front-end.
 
 ```bash
-set VER="0.2-1"
+set VER="0.3-1"
 sudo dpkg -i nomadcap_${VER}_amd64.deb
 ```
 

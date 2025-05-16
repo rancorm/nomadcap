@@ -20,5 +20,5 @@ Depends: ${shlibs:Depends},
     libjansson4,
     ieee-data
 Description: PCAP tool that aids in locating misconfigured network stacks 
- Nomadcap is a PCAP based tool that aids in identifying mis-configured network
+ Nomadcap is a PCAP based tool that aids in identifying misconfigured network
  stacks from live capture or offline files.
