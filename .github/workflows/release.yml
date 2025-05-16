@@ -58,5 +58,9 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: nomadcap_*.deb
+          draft: false
+          prerelease: false
           tag_name: ${{ github.ref_name }}
+          files: |
+            output/nomadcap_*.deb
+            *deb.sha256sum
