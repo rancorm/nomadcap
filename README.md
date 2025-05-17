@@ -9,16 +9,16 @@ requests that are not intended for the local network.
 
 - Live capture on specific interface (-i en0)
 - Offline capture from file (-f /path/to/capture.file)
-- Network (-n) and netmask (-m) override
-- Run capture for a duration (-d 60)
+- Network (-n) and [netmask](https://en.wikipedia.org/wiki/Subnet) (-m) override
+- Capture for a duration (-d 60)
 - Execute script/program on detection (-x /path/to/script.sh)
 - Exit on single match (-1)
-- MAC/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv* & *ieee-data* 
+- [MAC](https://en.wikipedia.org/wiki/MAC_address)/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv* & *ieee-data* 
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
 - [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
-- ISO 8601 timestamps both local (-t) and UTC (-u)
+- [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) timestamps both local (-t) and UTC (-u)
 - Verbose mode (-v)
 
 ## Dependencies
@@ -94,7 +94,7 @@ nomadcap -h
 #### Menu
 
 ```text
-nomadcap v0.2 [Mis-configured network stack identification tool]
+nomadcap v0.3 [Mis-configured network stack identification tool]
 
 Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjApa1tuLvV]
 
