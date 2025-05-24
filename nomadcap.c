@@ -499,7 +499,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 
   /* Command line options */
   NOMADCAP_STDOUT(
-      np, "Usage: %s [-i INTF] [-n NETWORK -m NETMASK]"
+      np, "Usage: %s [-i INTF] [-n NETWORK -m NETMASK] [--vlan X,Y,Z]"
 	  " [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-",
       np->pname);
 #ifdef USE_LIBCSV

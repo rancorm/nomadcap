@@ -1,15 +1,16 @@
 #
 # nomadcap Makefile
 #
-PROJECT_NAME	:=nomadcap
-BUILD_DIR	:=build/
+PROJECT_NAME:=nomadcap
+PROJECT_NAME6:=nomadcap6
+BUILD_DIR:=build/
 
 # Compiler stuff
-CC	:=$(shell which gcc)
-CFLAGS	:=
-LDFLAGS	:=-lpcap
-OBJ 	:= $(BUILD_DIR)nomadcap.o \
-	   $(BUILD_DIR)syslog.o
+CC:=$(shell which gcc)
+CFLAGS=
+LDFLAGS=-lpcap
+OBJ=$(BUILD_DIR)$(PROJECT_NAME).o $(BUILD_DIR)syslog.o
+OBJ6=$(BUILD_DIR)$(PROJECT_NAME6).o $(BUILD_DIR)syslog6.o
 
 # Paths to standard tools
 MKDIR	:=$(shell which mkdir)
@@ -48,6 +49,8 @@ $(shell rm -f libjansson_test.c)
 
 .PHONY: clean deb
 
+all: $(BUILD_DIR)$(PROJECT_NAME) $(BUILD_DIR)$(PROJECT_NAME6)
+
 # Targets
 $(BUILD_DIR)%.o: %.c %.h $(BUILD_DIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -55,18 +58,23 @@ $(BUILD_DIR)%.o: %.c %.h $(BUILD_DIR)
 $(BUILD_DIR)$(PROJECT_NAME): $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
-$(BUILD_DIR)$(PROJECT_NAME)-win32: $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) -Wl,--subsystem,windows
+$(BUILD_DIR)$(PROJECT_NAME6): $(OBJ6)
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
+
+$(BUILD_DIR)$(PROJECT_NAME)-win32: $(BUILD_DIR)$(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 $(BUILD_DIR):
 	$(MKDIR) $@
 
 install:
 	$(INSTALL) -s -D -m 755 $(BUILD_DIR)$(PROJECT_NAME) $(DESTDIR)/usr/bin/$(PROJECT_NAME)
+	$(INSTALL) -s -D -m 755 $(BUILD_DIR)$(PROJECT_NAME6) $(DESTDIR)/usr/bin/$(PROJECT_NAME6)
 
 clean:
 	$(RM) -f $(BUILD_DIR)*.o
 	$(RM) -f $(BUILD_DIR)$(PROJECT_NAME)
+	$(RM) -f $(BUILD_DIR)$(PROJECT_NAME6)
 
 deb:
 	$(DPKG_BUILDPKG) $(DPKG_BUILDPKG_FLAGS)
