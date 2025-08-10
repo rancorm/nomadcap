@@ -1025,6 +1025,13 @@ void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
     pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1)
       NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
 
+  if (np->localnet == 0)
+    NOMADCAP_FAILURE(np, "No L3 information found on interface: %s\n", np->device);
+
+#ifdef DEBUG
+    NOMADCAP_WARNING(np, "pcap_compile filter: %s\n", np->filter);
+#endif /* DEBUG */
+
   /* Compile filter into BPF program */
   if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1)
     NOMADCAP_FAILURE(np, "pcap_compile: %s\n", pcap_geterr(np->p));
