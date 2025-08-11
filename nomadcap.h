@@ -215,7 +215,9 @@ typedef struct nomadcap_pack {
 #define NOMADCAP_ETH_ADDRSTRLEN (12 + 5 + 1)
 
 /* ISO 8601 timestamp string length */
-#define NOMADCAD_TSLEN 29
+#define NOMADCAP_TSLEN 29
+
+#define NOMADCAP_LO "lo"
 
 /* Function prototypes */
 #ifdef USE_LIBJANSSON

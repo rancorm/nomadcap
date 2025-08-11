@@ -502,7 +502,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   char src_ip[INET_ADDRSTRLEN], tgt_ip[INET_ADDRSTRLEN];
   char src_ha[NOMADCAP_ETH_ADDRSTRLEN];
-  char ts[NOMADCAD_TSLEN];
+  char ts[NOMADCAP_TSLEN];
 
 #ifdef USE_LIBCSV
   nomadcap_oui_t *oui_entry;
@@ -790,7 +790,7 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
 int main(int argc, char *argv[]) {
   nomadcap_pack_t *np;
   struct pcap_stat ps;
-  char errbuf[PCAP_ERRBUF_SIZE], ts[NOMADCAD_TSLEN];
+  char errbuf[PCAP_ERRBUF_SIZE], ts[NOMADCAP_TSLEN];
   uint8_t *pkt;
   int c;
 
@@ -947,7 +947,7 @@ int main(int argc, char *argv[]) {
 }
 
 void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
-  pcap_if_t *devs;
+  pcap_if_t *devs, *dev;
 
   NOMADCAP_STDOUT_V(np, "Looking for interface...\n");
 
@@ -959,8 +959,19 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
   if (devs == NULL)
     NOMADCAP_FAILURE(np, "No interfaces found\n");
 
-  /* Copy device name of first found device */
-  np->device = strdup(devs[0].name);
+  /* Loop through devices stopping at the first device with network details */
+  for (dev = devs; dev != NULL; dev = dev->next) {
+    /* Loop through device addresses */
+    for (pcap_addr_t *addr = dev->addresses; addr != NULL; addr = addr->next) {
+      /* Check for non-loopback devices with IPv4 */
+      if (addr->addr &&
+	addr->addr->sa_family == AF_INET &&
+	strncmp(dev->name, NOMADCAP_LO, 2) != 0) {
+	    np->device = strdup(dev->name);
+	    break;
+        }
+    }
+  }
 
   NOMADCAP_STDOUT_V(np, "Found interface: %s\n", np->device);
 
