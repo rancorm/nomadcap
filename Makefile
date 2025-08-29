@@ -25,7 +25,7 @@ LIBCSV_TEST:=$(shell echo $(LIBCSV_PROG) > libcsv_test.c && $(CC) -o libcsv_test
 
 ifeq ($(LIBCSV_TEST),1)
 	CFLAGS += -DUSE_LIBCSV
-    LDFLAGS += -lcsv
+	LDFLAGS += -lcsv
 endif
 
 # Clean up after libcsv test
@@ -38,7 +38,7 @@ LIBJANSSON_TEST:=$(shell echo $(LIBJANSSON_PROG) > libjansson_test.c && $(CC) -o
 
 ifeq ($(LIBJANSSON_TEST),1)
 	CFLAGS += -DUSE_LIBJANSSON
-    LDFLAGS += -ljansson
+	LDFLAGS += -ljansson
 endif
 
 # Clean up after libcsv test

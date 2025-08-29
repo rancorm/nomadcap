@@ -1,6 +1,7 @@
 #!/bin/sh
 #
-#
+# echo.sh - Echo detected host details
+
 # Source/target hardware/application address
 SHA=$1
 SPA=$2

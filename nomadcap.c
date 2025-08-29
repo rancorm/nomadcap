@@ -762,13 +762,14 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
 	inet_ntop(AF_INET, &arp->arp_tpa, tpa_str, INET_ADDRSTRLEN);
 
 	/* Build arguments for binary */
-	/* [nomadcap, <sha>, <spa>, <tha>, <tpa>] */
+	/* [nomadcap, <sha>, <spa>, <tha>, <tpa>, <dev>] */
 	char *args[] = {
 	  np->binary,
 	  sha_str,
 	  spa_str,
 	  tha_str,
 	  tpa_str,
+	  np->device,
 	  NULL
 	};
 
