@@ -10,6 +10,7 @@
 #include <time.h>
 #include <locale.h>
 #include <sys/wait.h>
+#include <getopt.h>
 
 /* basename() */
 #include <libgen.h>
@@ -469,32 +470,33 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 
   NOMADCAP_STDOUT(np, "Apa1tuLvV]\n\n");
 
-  NOMADCAP_STDOUT(np, "\t-i INTF\t\tCapture on specific interface\n");
-  NOMADCAP_STDOUT(np, "\t-n NETWORK\tCapture network (e.g. 192.0.2.0)\n");
-  NOMADCAP_STDOUT(np, "\t-m NETMASK\tCapture netmask (e.g. 255.255.255.0)\n");
-  NOMADCAP_STDOUT(
-      np, "\t-f FILE.PCAP\tOffline capture using FILE.PCAP\n");
-  NOMADCAP_STDOUT(np, "\t-d SECONDS\tDuration of capture (default: %d, forever: 0)\n", NOMADCAP_DURATION);
+  NOMADCAP_STDOUT(np, "Options:\n");
+  NOMADCAP_HELP_OPT(np, "-i, --interface=INTF", "Capture on specific interface");
+  NOMADCAP_HELP_OPT(np, "-n, --network=NETWORK", "Capture network (e.g. 192.0.2.0)");
+  NOMADCAP_HELP_OPT(np, "-m, --mask=NETMASK", "Capture netmask (e.g. 255.255.255.0)");
+  NOMADCAP_HELP_OPT(
+      np, "-f, --file=FILE.PCAP", "Offline capture using FILE.PCAP");
+  NOMADCAP_HELP_OPT(np, "-d, --duration=SECONDS", "Duration of capture (default: " XSTR(NOMADCAP_DURATION) ", forever: 0)");
 
 #ifdef USE_LIBCSV
-  NOMADCAP_STDOUT(np, "\t-O\t\tMAC OUI to organization\n");
+  NOMADCAP_HELP_OPT(np, "-O, --oui", "MAC OUI to organization");
 #endif /* USE_LIBCSV */
 
-  NOMADCAP_STDOUT(np, "\t-A\t\tAll networks (ARP request monitor)\n");
-  NOMADCAP_STDOUT(np, "\t-p\t\tProcess ARP probes\n");
-  NOMADCAP_STDOUT(np, "\t-a\t\tProcess ARP announcements\n");
-  NOMADCAP_STDOUT(np, "\t-1\t\tExit after single match\n");
-  NOMADCAP_STDOUT(np, "\t-x PATH\t\tExecute on detection\n");
-  NOMADCAP_STDOUT(np, "\t-t\t\tISO 8601 timestamps\n");
-  NOMADCAP_STDOUT(np, "\t-u\t\tShow timestamps in UTC\n");
-  NOMADCAP_STDOUT(np, "\t-L\t\tList available interfaces\n");
+  NOMADCAP_HELP_OPT(np, "-A, --all", "All networks (ARP request monitor)");
+  NOMADCAP_HELP_OPT(np, "-p, --probes", "Process ARP probes");
+  NOMADCAP_HELP_OPT(np, "-a, --announce", "Process ARP announcements");
+  NOMADCAP_HELP_OPT(np, "-1, --once", "Exit after single match");
+  NOMADCAP_HELP_OPT(np, "-x, --exec=PATH", "Execute on detection");
+  NOMADCAP_HELP_OPT(np, "-t, --timestamp", "ISO 8601 timestamps");
+  NOMADCAP_HELP_OPT(np, "-u, --utc", "Show timestamps in UTC");
+  NOMADCAP_HELP_OPT(np, "-L, --list", "List available interfaces");
 
 #ifdef USE_LIBJANSSON
-  NOMADCAP_STDOUT(np, "\t-j\t\tJSON output\n");
+  NOMADCAP_HELP_OPT(np, "-j, --json", "JSON output");
 #endif /* USE_LIBJANSSON */
 
-  NOMADCAP_STDOUT(np, "\t-v\t\tVerbose mode\n");
-  NOMADCAP_STDOUT(np, "\t-V\t\tVersion\n");
+  NOMADCAP_HELP_OPT(np, "-v, --verbose", "Verbose mode");
+  NOMADCAP_HELP_OPT(np, "-V, --version", "Version");
 
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
@@ -810,7 +812,10 @@ int main(int argc, char *argv[]) {
   }
 
   /* Parse command line argumemnts */
-  while ((c = getopt(argc, argv, NOMADCAP_OPTS)) != -1) {
+  while ((c = getopt_long(argc, argv,
+			  NOMADCAP_OPTS,
+			  nomadcap_long_opts,
+			  NULL)) != -1) {
     switch (c) {
 #ifdef USE_LIBCSV
     case 'O': /* OUI look up */

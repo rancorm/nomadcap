@@ -3,7 +3,7 @@
 
 /* Author and banner */
 #define NOMADCAP_AUTHOR "Jonathan Cormier <jonathan@cormier.co>"
-#define NOMADCAP_BANNER "Mis-configured network stack identification tool"
+#define NOMADCAP_BANNER "Misconfigure network stack identification tool"
 
 /* Application defaults */
 #define NOMADCAP_DURATION 60
@@ -43,6 +43,32 @@ j - JSON mode
 t - ISO 8601 timestamps
 */
 #define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1x:jtu"
+
+static const struct option nomadcap_long_opts[] = {
+#ifdef USE_LIBCSV
+  { "oui",      no_argument,       NULL, 'O' },
+#endif
+  { "all",       no_argument,       NULL, 'A' },
+  { "probes",    no_argument,       NULL, 'p' },
+  { "announce",  no_argument,       NULL, 'a' },
+  { "interface", required_argument, NULL, 'i' },
+  { "network",   required_argument, NULL, 'n' },
+  { "netmask",   required_argument, NULL, 'm' },
+  { "file",      required_argument, NULL, 'f' },
+  { "duration",  required_argument, NULL, 'd' },
+  { "verbose",   no_argument,       NULL, 'v' },
+  { "once",      no_argument,       NULL, '1' },
+  { "exec",      required_argument, NULL, 'x' },
+#ifdef USE_LIBJANSSON
+  { "json",      no_argument,       NULL, 'j' },
+#endif
+  { "timestamp", no_argument,       NULL, 't' },
+  { "utc",       no_argument,       NULL, 'u' },
+  { "list",      no_argument,       NULL, 'L' },
+  { "version",   no_argument,       NULL, 'V' },
+  { "help",      no_argument,       NULL, 'h' },
+  { 0, 0, 0, 0 }
+};
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
 #define NOMADCAP_FLAG_NOT(pack, flag)                                          \
@@ -205,6 +231,19 @@ typedef struct nomadcap_pack {
 #define NOMADCAP_SUCCESS(pack)                                                 \
   do {                                                                         \
     nomadcap_exit(pack, EXIT_SUCCESS);                                         \
+  } while (0)
+
+#define NOMADCAP_HELP_COLS 23
+#define NOMADCAP_HELP_DESC 20
+#define STR(x)  #x
+#define XSTR(x) STR(x)
+#define NOMADCAP_HELP_OPT(pack, opt, desc)		      		       \
+  do {									       \
+    printf("  %-*s%-*s\n",						       \
+      NOMADCAP_HELP_COLS,						       \
+      opt,								       \
+      NOMADCAP_HELP_DESC,						       \
+      desc);								       \
   } while (0)
 
 #ifndef ETH_ALEN
