@@ -1,6 +1,6 @@
 # nomadcap
 
-[PCAP](https://en.wikipedia.org/wiki/Pcap) tool that aids in locating misconfigured network stacks.
+[PCAP](https://en.wikipedia.org/wiki/Pcap) tool that aids in locating misconfigure network stacks.
 
 The tool's function is to identify [Address Resolution Protocol](https://en.wikipedia.org/wiki/Address_Resolution_Protocol) (ARP)
 requests that are not intended for the local network.
@@ -13,7 +13,7 @@ requests that are not intended for the local network.
 - Capture for a duration (-d 60)
 - Execute script/program on detection (-x /path/to/script.sh)
 - Exit on single match (-1)
-- [MAC](https://en.wikipedia.org/wiki/MAC_address)/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv* & *ieee-data* 
+- [MAC](https://en.wikipedia.org/wiki/MAC_address)/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv & ieee-data* 
 - Process all networks (-A) as a basic request monitor
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
@@ -94,27 +94,28 @@ nomadcap -h
 #### Menu
 
 ```text
-nomadcap v0.3 [Mis-configured network stack identification tool]
+nomadcap v0.3 [Misconfigure network stack identification tool]
 
-Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjApa1tuLvV]
+Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-Apa1stuLvV]
 
-        -i INTF         Capture on specific interface
-        -n NETWORK      Capture network (e.g. 192.0.2.0)
-        -m NETMASK      Capture netmask (e.g. 255.255.255.0)
-        -f FILE.PCAP    Offline capture using FILE.PCAP
-        -d SECONDS      Duration of capture (default: 60, forever: 0)
-        -O              MAC OUI to organization
-        -A              All networks (ARP request monitor)
-        -p              Process ARP probes
-        -a              Process ARP announcements
-        -1              Exit after single match
-        -x PATH         Execute on detection
-        -t              ISO 8601 timestamps
-        -u              Show timestamps in UTC
-        -L              List available interfaces
-        -j              JSON output
-        -v              Verbose mode
-        -V              Version
+Options:
+  -i, --interface=INTF   Capture on specific interface
+  -n, --network=NETWORK  Capture network (e.g. 192.0.2.0)
+  -m, --mask=NETMASK     Capture netmask (e.g. 255.255.255.0)
+  --vlan X,Y,Z           Specific VLANs to monitor
+  -f, --file=FILE.PCAP   Offline capture using FILE.PCAP
+  -d, --duration=SECONDS Duration of capture (default: 60, forever: 0)
+  -A, --all              All networks (ARP request monitor)
+  -p, --probes           Process ARP probes
+  -a, --announce         Process ARP announcements
+  -1, --once             Exit after single match
+  -x, --exec=PATH        Execute on detection
+  -s, --syslog           Send to syslog
+  -t, --timestamp        ISO 8601 timestamps
+  -u, --utc              Show timestamps in UTC
+  -L, --list             List available interfaces
+  -v, --verbose          Verbose mode
+  -V, --version          Version
 ```
 
 ### Examples
@@ -128,7 +129,7 @@ sudo nomadcap -v
 ```
 
 Capture on found interface `wlo1` for network `192.168.2.0` with subnet mask `255.255.255.0`.
-In this example `10.0.70.5` is the misconfigured host looking for the default gateway `10.0.70.1`.
+In this example `10.0.70.5` is the misconfigure host looking for the default gateway `10.0.70.1`.
 
 Capture for the default duration of 60 seconds.
 

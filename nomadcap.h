@@ -1,6 +1,35 @@
 #ifndef __NOMADCAP_H
 #define __NOMADCAP_H
 
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <locale.h>
+#include <sys/wait.h>
+#include <getopt.h>
+
+/* basename() */
+#include <libgen.h>
+#include <unistd.h>
+
+/* PCAP */
+#include <pcap.h>
+
+/* Ethernet and ARP */
+#include <net/ethernet.h>
+#include <net/if_arp.h>
+#include <netinet/if_ether.h>
+
+#ifdef USE_LIBCSV
+#include <csv.h>
+#endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+#include <jansson.h>
+#endif /* USE_LIBJANSSON */
+
 /* Author and banner */
 #define NOMADCAP_AUTHOR "Jonathan Cormier <jonathan@cormier.co>"
 #define NOMADCAP_BANNER "Misconfigure network stack identification tool"
@@ -42,11 +71,11 @@ V - Version
 j - JSON mode
 t - ISO 8601 timestamps
 */
-#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1x:jtu"
+#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1x:jstu"
 
 static const struct option nomadcap_long_opts[] = {
 #ifdef USE_LIBCSV
-  { "oui",      no_argument,       NULL, 'O' },
+  { "oui",       no_argument,       NULL, 'O' },
 #endif
   { "all",       no_argument,       NULL, 'A' },
   { "probes",    no_argument,       NULL, 'p' },
@@ -54,6 +83,7 @@ static const struct option nomadcap_long_opts[] = {
   { "interface", required_argument, NULL, 'i' },
   { "network",   required_argument, NULL, 'n' },
   { "netmask",   required_argument, NULL, 'm' },
+  { "vlan",      required_argument, NULL, 420 },
   { "file",      required_argument, NULL, 'f' },
   { "duration",  required_argument, NULL, 'd' },
   { "verbose",   no_argument,       NULL, 'v' },
@@ -62,6 +92,7 @@ static const struct option nomadcap_long_opts[] = {
 #ifdef USE_LIBJANSSON
   { "json",      no_argument,       NULL, 'j' },
 #endif
+  { "syslog",    no_argument,       NULL, 's' },
   { "timestamp", no_argument,       NULL, 't' },
   { "utc",       no_argument,       NULL, 'u' },
   { "list",      no_argument,       NULL, 'L' },
@@ -71,8 +102,7 @@ static const struct option nomadcap_long_opts[] = {
 };
 
 #define NOMADCAP_FLAG(pack, flag) (pack->flags & NOMADCAP_FLAGS_##flag)
-#define NOMADCAP_FLAG_NOT(pack, flag)                                          \
-  ((pack->flags & NOMADCAP_FLAGS_##flag) == 0)
+#define NOMADCAP_FLAG_NOT(pack, flag) (!NOMADCAP_FLAG(pack, flag))
 #define NOMADCAP_FLAGS_NONE 0x0
 #define NOMADCAP_FLAGS_VERBOSE 0x1
 #define NOMADCAP_FLAGS_ALLNET 0x2
@@ -82,7 +112,6 @@ static const struct option nomadcap_long_opts[] = {
 #define NOMADCAP_FLAGS_ONE 0x40
 #define NOMADCAP_FLAGS_NETWORK 0x100
 #define NOMADCAP_FLAGS_NETMASK 0x200
-
 #ifdef USE_LIBCSV
 #define NOMADCAP_FLAGS_OUI 0x400
 
@@ -103,6 +132,9 @@ static const struct option nomadcap_long_opts[] = {
 #endif /* USE_LIBJANSSON */
 
 #define NOMADCAP_FLAGS_TS 0x2000
+#define NOMADCAP_FLAGS_SYSLOG 0x4000
+
+#define NOMADCAP_VLANS_SIZE 32
 
 #define NOMADCAP_VERSION "0.3"
 
@@ -155,11 +187,16 @@ typedef struct nomadcap_pack {
 
   /* Path to binary */
   char *binary;
+
+  /* VLAN */
+  uint16_t vlans[NOMADCAP_VLANS_SIZE];
+  uint8_t vlan_cnt;
 } nomadcap_pack_t;
 
 #ifdef USE_LIBJANSSON
 #define NOMADCAP_STDERR(pack, format, ...)                                     \
   do {                                                                         \
+
     if (NOMADCAP_FLAG_NOT(pack, JSON)) {                                       \
       fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__);                      \
     }                                                                          \
@@ -168,6 +205,7 @@ typedef struct nomadcap_pack {
 #define NOMADCAP_STDOUT(pack, format, ...)                                     \
   do {                                                                         \
     if (NOMADCAP_FLAG_NOT(pack, JSON)) {                                       \
+
       printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
     }                                                                          \
   } while (0)
@@ -221,6 +259,21 @@ typedef struct nomadcap_pack {
     fprintf(stderr, format  __VA_OPT__(, ) __VA_ARGS__);                       \
   } while(0)
 #endif /* USE_LIBJANSSON */
+
+#define NOMADCAP_SYSLOG(pack, format, ...)				       \
+  do {									       \
+    if (NOMADCAP_FLAG(pack, SYSLOG)) {					       \
+      nomadcap_syslog(pack, format __VA_OPT__(, ) __VA_ARGS__);		       \
+    }									       \
+  } while(0)
+
+#define NOMADCAP_SYSLOG_V(pack, format, ...)				       \
+  do {									       \
+    if (NOMADCAP_FLAG(pack, SYSLOG) &&					       \
+      NOMADCAP_FLAG(pack, VERBOSE)) {					       \
+      nomadcap_syslog(pack, format __VA_OPT__(, ) __VA_ARGS__);		       \
+    }									       \
+  } while(0)
 
 #define NOMADCAP_FAILURE(pack, format, ...)                                    \
   do {                                                                         \

@@ -3,43 +3,61 @@
  * nomadcap.c [PCAP tool that aids in locating misconfigured network stacks]
  *
  */
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <locale.h>
-#include <sys/wait.h>
-#include <getopt.h>
-
-/* basename() */
-#include <libgen.h>
-#include <unistd.h>
-
-/* PCAP */
-#include <pcap.h>
-
-/* Ethernet and ARP */
-#include <net/ethernet.h>
-#include <net/if_arp.h>
-#include <netinet/if_ether.h>
-
-#ifdef USE_LIBCSV
-#include <csv.h>
-#endif /* USE_LIBCSV */
-
-#ifdef USE_LIBJANSSON
-#include <jansson.h>
-#endif /* USE_LIBJANSSON */
 
 /* getopt friends */
 extern char *optarg;
 extern int optopt;
 
 #include "nomadcap.h"
+#include "syslog.h"
 
 /* Global termination control */
 int loop = 1;
+
+size_t nomadcap_uint2str(char *buf, size_t buf_size,
+			 const uint16_t *array, size_t count,
+			 const char *prefix, const char *suffix) {
+  size_t used = 0;
+  int w;
+
+  /* prefix */
+  w = snprintf(buf + used, buf_size - used, "%s", prefix);
+ 
+  if (w < 0 || (size_t)w >= buf_size - used)
+    return -1;
+
+  used += w;
+
+  /* array elements */
+  for (size_t i = 0; i < count; ++i) {
+    w = snprintf(buf + used, buf_size - used, "%u", array[i]);
+        
+    if (w < 0 || (size_t)w >= buf_size - used)
+      return -1;
+    
+    used += w;
+
+    if (i + 1 < count) {                 
+      /* comma+space between items */
+      w = snprintf(buf + used, buf_size - used, ", ");
+      
+      if (w < 0 || (size_t)w >= buf_size - used)
+	return -1;
+      
+      used += w;
+    }
+  }
+
+  /* suffix */
+  w = snprintf(buf + used, buf_size - used, "%s", suffix);
+  
+  if (w < 0 || (size_t)w >= buf_size - used)
+    return -1;
+  
+  used += w;
+
+  return used;
+}
 
 void nomadcap_exec(nomadcap_pack_t *np, char **argv) {
   pid_t pid = fork();
@@ -50,6 +68,7 @@ void nomadcap_exec(nomadcap_pack_t *np, char **argv) {
     _exit(1);
   } else if (pid > 0) {
     NOMADCAP_STDOUT_V(np, "Executing '%s'...\n", argv[0]);
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Executing '%s'...\n", argv[0]);
 
     /* Parent process */
     int status;
@@ -122,6 +141,10 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
     if (np->p)
       pcap_close(np->p);
 
+    /* Close syslog */
+    if (NOMADCAP_FLAG(np, SYSLOG))
+      nomadcap_closelog(np);
+
     /* Free structure */
     free(np);
   }
@@ -163,10 +186,13 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
     nomadcap_finddev(np, errbuf);
 
   NOMADCAP_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
+  NOMADCAP_SYSLOG_V(np, LOG_INFO, "Flags: 0x%08x\n", np->flags);
 
   /* Execute binary on detection */
-  if (np->binary)
+  if (np->binary) {
     NOMADCAP_STDOUT_V(np, "Binary: %s\n", np->binary);
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Binary: %s\n", np->binary);
+  }
 
 #ifdef USE_LIBJANSSON
   /* Add flags to JSON object */
@@ -180,10 +206,12 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
   if (NOMADCAP_FLAG(np, OUI)) {
     NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n",
                       NOMADCAP_OUI_FILEPATH);
-
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Loading OUI data from %s...\n",
+                      NOMADCAP_OUI_FILEPATH);
     nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
 
     NOMADCAP_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap_oui_size(np));
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Loaded %'d OUIs\n", nomadcap_oui_size(np));
 
 #ifdef USE_LIBJANSSON
     /* Add number of loaded OUIs to JSON object */
@@ -344,9 +372,12 @@ int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
   /* Function _cb1 handles fields, cb2 handles row end */
   while ((nbytes = fread(buf, 1, sizeof(buf), fp)) > 0)
     if (csv_parse(&cp, buf, nbytes, nomadcap_oui_cb1, nomadcap_oui_cb2, np) !=
-        nbytes)
-        NOMADCAP_FAILURE(np, "Error parsing OUI data file: %s\n",
+        nbytes) {
+      NOMADCAP_SYSLOG(np, LOG_ERR, "Error parsing OUI data file: %s\n",
           csv_strerror(csv_error(&cp)));
+      NOMADCAP_FAILURE(np, "Error parsing OUI data file: %s\n",
+          csv_strerror(csv_error(&cp)));
+  }
 
   /* Clean up parser resources, close file */
   csv_fini(&cp, nomadcap_oui_cb1, nomadcap_oui_cb2, 0);
@@ -434,20 +465,31 @@ void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
 }
 
 void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
-  int i;
+  int  off = strlen(buf);          /* logical length on entry */
+  int  left = buf_size - off;      /* space still available */
 
-  for (i = 0; i < size; i++) {
-    /* Store hex or decimal */
-    if (hex) {
-      snprintf(buf + strlen(buf), buf_size, "%02x", addr[i]);
-    } else {
-      snprintf(buf + strlen(buf), buf_size, "%d", addr[i]);
+  for (int i = 0; i < size && left > 1; ++i) {
+    int n = snprintf(buf + off,
+		     left,
+		     hex ? "%02x" : "%d",
+		     addr[i]);
+
+    /* output error / no room */
+    if (n < 0 || n >= left) break;
+    
+    off += n;
+    left -= n;
+
+    /* separator */
+    if (i < size - 1 && left > 1) {          
+      buf[off++] = sep;
+      buf[off] = '\0';
+      left--;
     }
-
-    /* Store seperator */
-    if (i < size - 1)
-      snprintf(buf + strlen(buf), buf_size, "%c", sep);
   }
+  
+  /* ensure NUL-termination */
+  buf[buf_size - 1] = '\0';
 }
 
 void nomadcap_usage(nomadcap_pack_t *np) {
@@ -468,12 +510,13 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_STDOUT(np, "j");
 #endif /* USE_LIBJANSSON */
 
-  NOMADCAP_STDOUT(np, "Apa1tuLvV]\n\n");
+  NOMADCAP_STDOUT(np, "Apa1stuLvV]\n\n");
 
   NOMADCAP_STDOUT(np, "Options:\n");
   NOMADCAP_HELP_OPT(np, "-i, --interface=INTF", "Capture on specific interface");
   NOMADCAP_HELP_OPT(np, "-n, --network=NETWORK", "Capture network (e.g. 192.0.2.0)");
   NOMADCAP_HELP_OPT(np, "-m, --mask=NETMASK", "Capture netmask (e.g. 255.255.255.0)");
+  NOMADCAP_HELP_OPT(np, "--vlan X,Y,Z", "Specific VLANs to monitor");
   NOMADCAP_HELP_OPT(
       np, "-f, --file=FILE.PCAP", "Offline capture using FILE.PCAP");
   NOMADCAP_HELP_OPT(np, "-d, --duration=SECONDS", "Duration of capture (default: " XSTR(NOMADCAP_DURATION) ", forever: 0)");
@@ -487,6 +530,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
   NOMADCAP_HELP_OPT(np, "-a, --announce", "Process ARP announcements");
   NOMADCAP_HELP_OPT(np, "-1, --once", "Exit after single match");
   NOMADCAP_HELP_OPT(np, "-x, --exec=PATH", "Execute on detection");
+  NOMADCAP_HELP_OPT(np, "-s, --syslog", "Send to syslog");
   NOMADCAP_HELP_OPT(np, "-t, --timestamp", "ISO 8601 timestamps");
   NOMADCAP_HELP_OPT(np, "-u, --utc", "Show timestamps in UTC");
   NOMADCAP_HELP_OPT(np, "-L, --list", "List available interfaces");
@@ -505,6 +549,8 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   char src_ip[INET_ADDRSTRLEN], tgt_ip[INET_ADDRSTRLEN];
   char src_ha[NOMADCAP_ETH_ADDRSTRLEN];
   char ts[NOMADCAP_TSLEN];
+  char output[512];
+  size_t w;
 
 #ifdef USE_LIBCSV
   nomadcap_oui_t *oui_entry;
@@ -519,6 +565,8 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   memset(src_ha, 0, sizeof(src_ha));
   memset(tgt_ip, 0, sizeof(tgt_ip));
   memset(ts, 0, sizeof(ts));
+  memset(output, 0, sizeof(output));
+  w = 0;
 
   /* Print address to their respective buffers */
   nomadcap_anprint(np, src_ip, sizeof(src_ip), arp->arp_spa, 4, '.', 0);
@@ -529,10 +577,10 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   nomadcap_iso8601(np, ts, sizeof(ts));
   
   if (NOMADCAP_FLAG(np, TS))
-    NOMADCAP_STDOUT(np, "%s - ", ts);
+    w = snprintf(output, sizeof(output), "%s - ", ts);
 
   /* Final output: [Timestamp] <Sender IP> [<Sender MAC> - Org] is looking for <Target IP> */
-  NOMADCAP_STDOUT(np, "%s [%s", src_ip, src_ha);
+  w += snprintf(output + w, sizeof(output) - w, "%s [%s", src_ip, src_ha);
 
 #ifdef USE_LIBCSV
   /* Output OUI org. details */
@@ -540,12 +588,18 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
     oui_entry = nomadcap_oui_lookup(np, arp);
 
     if (oui_entry)
-      NOMADCAP_STDOUT(np, " - %s", oui_entry->org_name);
+      w += snprintf(output + w,
+		    sizeof(output) - w,
+		    " - %s",
+		    oui_entry->org_name);
   }
 #endif /* USE_LIBCSV */
 
+  snprintf(output + w, sizeof(output) - w, "] is looking for %s\n", tgt_ip);
+  
   /* Output target IP */
-  NOMADCAP_STDOUT(np, "] is looking for %s\n", tgt_ip);
+  NOMADCAP_STDOUT(np, "%s", output);
+  NOMADCAP_SYSLOG(np, LOG_INFO, "%s", output);
 
 #ifdef USE_LIBJANSSON
   if (NOMADCAP_FLAG(np, JSON)) {
@@ -629,10 +683,33 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     /* Binary to execute on detections */
     np->binary = NULL;
 
+    memset(np->vlans, 0, sizeof(np->vlans));
+    np->vlan_cnt = 0;
+      
     return np;
   }
 
   return NULL;
+}
+
+int nomadcap_isvlan(nomadcap_pack_t *np, struct ether_header *eh) {
+  /* 1. 0x8100 marks an 802.1Q tag */
+  if (ntohs(eh->ether_type) != 0x8100)
+    return 0;
+
+  /* 2. VLAN tag sits right after ether_type */
+  const uint16_t *tci = (const uint16_t *)(eh + 1);
+
+  /* 3. lower 12 bits are the VID */
+  uint16_t vid = ntohs(*tci) & 0x0FFF;
+
+  for (size_t i = 0; i < np->vlan_cnt; i++) {
+    if (vid == np->vlans[i]) {
+      return 1;
+    }
+  }
+
+  return 0; 
 }
 
 int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
@@ -641,6 +718,12 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
   if (ph->caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
     /* Check for broadcasts */
     if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
+      /* Check for specific VLAN traffic */
+      if (np->vlan_cnt) {
+	  /* Interested in this VLAN traffic */
+	  return nomadcap_isvlan(np, eth);
+      }
+
       /* Check for alternative ARP reply announcements */
       if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REPLY &&
         memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
@@ -648,8 +731,9 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
           /* Not processing ARP announcments */
           if (NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
             NOMADCAP_STDOUT_V(np, "ARP announcement (reply), ignoring...\n");
+	    NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP announcement (reply), ignoring...\n");
 
-            return 0;
+	    return 0;
           }
 
           /* Interesting ARP reply */
@@ -659,6 +743,7 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
       /* Only looking for ARP requests */
       if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
         NOMADCAP_STDOUT_V(np, "Non ARP request, ignoring...\n");
+        NOMADCAP_SYSLOG_V(np, LOG_INFO, "Non ARP request, ignoring...\n");
 
         return 0;
       }
@@ -667,7 +752,8 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
       if (memcmp(arp->arp_spa, NOMADCAP_NONE, arp->ea_hdr.ar_pln) == 0 &&
 	  memcmp(arp->arp_tha, NOMADCAP_UNKNOWN, arp->ea_hdr.ar_hln) == 0 &&
           NOMADCAP_FLAG_NOT(np, PROBES)) {
-        NOMADCAP_STDOUT_V(np, "ARP probe, ignoring...\n");
+	NOMADCAP_STDOUT_V(np, "ARP probe, ignoring...\n");
+        NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP probe, ignoring...\n");
 
         return 0;
       }
@@ -675,7 +761,8 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
       /* Check for ARP announcements */
       if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
           NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
-        NOMADCAP_STDOUT_V(np, "ARP announcement, ignoring...\n");
+	NOMADCAP_STDOUT_V(np, "ARP announcement, ignoring...\n");
+        NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP announcement, ignoring...\n");
 
         return 0;
       }
@@ -783,6 +870,7 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
 	pcap_breakloop(np->p);
     } else {
       NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
+      NOMADCAP_SYSLOG_V(np, LOG_INFO, "Local traffic, ignoring...\n");
     }
   }
 
@@ -794,6 +882,7 @@ int main(int argc, char *argv[]) {
   nomadcap_pack_t *np;
   struct pcap_stat ps;
   char errbuf[PCAP_ERRBUF_SIZE], ts[NOMADCAP_TSLEN];
+  char vlan_str[512];
   uint8_t *pkt;
   int c;
 
@@ -864,6 +953,9 @@ int main(int argc, char *argv[]) {
       np->flags |= NOMADCAP_FLAGS_JSON;
       break;
 #endif /* USE_LIBJANSSON */
+    case 's':
+      np->flags |= NOMADCAP_FLAGS_SYSLOG; 
+      break;
     case 't':
       np->flags |= NOMADCAP_FLAGS_TS;
       break;
@@ -880,6 +972,30 @@ int main(int argc, char *argv[]) {
     case 'h': /* Help screen */
       nomadcap_usage(np);
       NOMADCAP_SUCCESS(np);
+    case 420: {
+      char *s = optarg;
+      char *token;
+
+      while ((token = strtok(s, ",")) != NULL) {
+	  s = NULL;
+
+	  unsigned long v = strtoul(token, NULL, 0);
+	  
+	  if (v > 4095) {
+            NOMADCAP_WARNING(np, "VLAN %s out of range\n", token);
+            continue;
+	  }
+        
+	  if (np->vlan_cnt >= 32) {
+            NOMADCAP_WARNING(np, "VLAN list full (32 max)\n");
+            break;
+	  }
+        
+	  np->vlans[np->vlan_cnt++] = (uint16_t)v;
+	}
+
+	break;
+      }
     default: /* '?' */
       NOMADCAP_WARNING(np, "Unknown switch -%c, check -h.\n", optopt);
     }
@@ -890,6 +1006,22 @@ int main(int argc, char *argv[]) {
 
   /* Current listening device */
   NOMADCAP_STDOUT(np, "Listening on: %s\n", np->device);
+  NOMADCAP_SYSLOG(np, LOG_INFO, "Listening on: %s\n", np->device);
+
+  /* VLANs */
+  if (np->vlan_cnt > 0) {
+    memset(vlan_str, 0, sizeof(vlan_str));
+
+    nomadcap_uint2str(vlan_str,
+		     sizeof(vlan_str),
+		     np->vlans,
+		     np->vlan_cnt,
+		     "VLAN(s): ",
+		     "\n");
+    
+    NOMADCAP_STDOUT_V(np, "%s", vlan_str);
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "%s", vlan_str);
+  }
 
 #ifdef USE_LIBJANSSON
   NOMADCAP_JSON_PACK(np, "listening_on", json_string(np->device));
@@ -898,11 +1030,15 @@ int main(int argc, char *argv[]) {
   /* Network details */
   nomadcap_netprint(np);
 
-  /* Started at timestamp */
+  /* Syslog */
+  NOMADCAP_STDOUT_V(np, "Syslog: %d\n", NOMADCAP_FLAG(np, SYSLOG) > 0);
+
+  /* Start timestamp */
   memset(ts, 0, sizeof(ts));
 
   nomadcap_iso8601(np, ts, sizeof(ts));
   NOMADCAP_STDOUT(np, "Started at: %s\n", ts);
+  NOMADCAP_SYSLOG(np, LOG_INFO, "Started at: %s\n", ts);
 
 #ifdef USE_LIBJANSSON
   /* Add start at timestamp to JSON object */
@@ -921,6 +1057,8 @@ int main(int argc, char *argv[]) {
     } else {
       NOMADCAP_STDOUT(np, "\nPackets received: %'d\n", ps.ps_recv);
       NOMADCAP_STDOUT(np, "Packets dropped: %'d\n", ps.ps_drop);
+      NOMADCAP_SYSLOG(np, LOG_INFO, "\nPackets received: %'d\n", ps.ps_recv);
+      NOMADCAP_SYSLOG(np, LOG_INFO, "Packets dropped: %'d\n", ps.ps_drop);
 
 #ifdef USE_LIBJANSSON
       /* Add PCAP statistics to JSON object */
@@ -949,6 +1087,8 @@ int main(int argc, char *argv[]) {
 
   /* Notify user of job done and exit */
   NOMADCAP_STDOUT_V(np, "Done\n");
+  NOMADCAP_SYSLOG_V(np, LOG_INFO, "Done\n");
+
   nomadcap_exit(np, EXIT_SUCCESS);
 }
 
@@ -956,14 +1096,19 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
   pcap_if_t *devs, *dev;
 
   NOMADCAP_STDOUT_V(np, "Looking for interface...\n");
+  NOMADCAP_SYSLOG_V(np, LOG_INFO, "Looking for interface...\n");
 
   /* Find all available network interfaces */
-  if (pcap_findalldevs(&devs, errbuf) == -1)
+  if (pcap_findalldevs(&devs, errbuf) == -1) {
+    NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_findalldevs: %s\n", errbuf);
     NOMADCAP_FAILURE(np, "pcap_findalldevs: %s\n", errbuf);
+  }
 
   /* No interfaces, print an error message and exit */
-  if (devs == NULL)
+  if (devs == NULL) {
+    NOMADCAP_SYSLOG(np, LOG_ERR, "No interfaces found\n");
     NOMADCAP_FAILURE(np, "No interfaces found\n");
+  }
 
   /* Loop through devices stopping at the first device with network details */
   for (dev = devs; dev != NULL; dev = dev->next) {
@@ -980,6 +1125,7 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
   }
 
   NOMADCAP_STDOUT_V(np, "Found interface: %s\n", np->device);
+  NOMADCAP_SYSLOG_V(np, LOG_INFO, "Found interface: %s\n", np->device);
 
 #ifdef USE_LIBJANSSON
   if (NOMADCAP_FLAG(np, JSON))
@@ -1000,6 +1146,8 @@ void nomadcap_netprint(nomadcap_pack_t *np) {
 
   NOMADCAP_STDOUT(np, "Local network: %s\n", localnet_s);
   NOMADCAP_STDOUT(np, "Network mask: %s\n", netmask_s);
+  NOMADCAP_SYSLOG(np, LOG_INFO, "Local network: %s\n", localnet_s);
+  NOMADCAP_SYSLOG(np, LOG_INFO, "Network mask: %s\n", netmask_s);
 
 #ifdef USE_LIBJANSSON
   /* Add local network and mask to JSON object */
@@ -1011,17 +1159,23 @@ void nomadcap_netprint(nomadcap_pack_t *np) {
 }
 
 void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
+  if (NOMADCAP_FLAG(np, SYSLOG))
+    nomadcap_openlog(np);
+  
   /* No file name from user, live capture */
   if (NOMADCAP_FLAG_NOT(np, FILE)) {
     np->p = pcap_open_live(np->device, NOMADCAP_SNAPLEN, NOMADCAP_PROMISC,
                            NOMADCAP_TIMEOUT, errbuf);
 
     /* Catch open errors */
-    if (np->p == NULL)
+    if (np->p == NULL) {
+      NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_open_live: %s\n", errbuf);
       NOMADCAP_FAILURE(np, "pcap_open_live: %s\n", errbuf);
+    }
   } else {
     /* Offline capture */
     NOMADCAP_STDOUT_V(np, "Loading capture file: %s\n", np->filename);
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Loading capture file: %s\n", np->filename);
 
 #ifdef USE_LIBJANSSON
     /* Add offline capture filename to JSON object */
@@ -1033,51 +1187,67 @@ void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
     np->p = pcap_open_offline(np->filename, errbuf);
 
     /* Catch open errors */
-    if (np->p == NULL)
+    if (np->p == NULL) {
+      NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_open_offline: %s\n", errbuf);
       NOMADCAP_FAILURE(np, "pcap_open_offline: %s\n", errbuf);
+    }
   }
 
   /* Look up local network and mask, if not provided by user on command line */
   if (NOMADCAP_FLAG_NOT(np, NETWORK) && 
-    pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1)
-      NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
+    pcap_lookupnet(np->device, &np->localnet, &np->netmask, errbuf) == -1) {
+    NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_lookupnet: %s\n", errbuf);
+    NOMADCAP_FAILURE(np, "pcap_lookupnet: %s\n", errbuf);
+  }
 
-  if (np->localnet == 0)
+  if (np->localnet == 0) {
+    NOMADCAP_SYSLOG(np, LOG_ERR, "No L3 information found on interface: %s\n", np->device);
     NOMADCAP_FAILURE(np, "No L3 information found on interface: %s\n", np->device);
-
+  }
 #ifdef DEBUG
     NOMADCAP_WARNING(np, "pcap_compile filter: %s\n", np->filter);
 #endif /* DEBUG */
 
   /* Compile filter into BPF program */
-  if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1)
+  if (pcap_compile(np->p, &np->code, np->filter, 1, np->netmask) == -1) {
+    NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_compile: %s\n", pcap_geterr(np->p));
     NOMADCAP_FAILURE(np, "pcap_compile: %s\n", pcap_geterr(np->p));
+  }
 
   /* Set program as filter */
-  if (pcap_setfilter(np->p, &np->code) == -1)
+  if (pcap_setfilter(np->p, &np->code) == -1) {
+    NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_setfilter: %s\n", errbuf);
     NOMADCAP_FAILURE(np, "pcap_setfilter: %s\n", errbuf);
+  }
 
   /* Check datalink */
-  if (pcap_datalink(np->p) != DLT_EN10MB)
+  if (pcap_datalink(np->p) != DLT_EN10MB){
+    NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_datalink: Ethernet only, sorry.");
     NOMADCAP_FAILURE(np, "pcap_datalink: Ethernet only, sorry.");
+  }
 }
 
 void nomadcap_signals(nomadcap_pack_t *np) {
   /* Interrupt signal */
-  if (nomadcap_signal(SIGINT, nomadcap_cleanup) == -1)
+  if (nomadcap_signal(SIGINT, nomadcap_cleanup) == -1) {
+    NOMADCAP_SYSLOG(np, LOG_ERR, "Can't catch SIGINT signal\n");
     NOMADCAP_FAILURE(np, "Can't catch SIGINT signal\n");
+  }
 
   /* Duration alarm */
   if (np->duration > 0) {
     NOMADCAP_STDOUT_V(np, "Duration: %'d seconds\n", np->duration);
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Duration: %'d seconds\n", np->duration);
 
 #ifdef USE_LIBJANSSON
     if (NOMADCAP_FLAG(np, JSON))
       NOMADCAP_JSON_PACK_V(np, "duration", json_integer(np->duration));
 #endif /* USE_LIBJANSSON */
 
-    if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1)
+    if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1) {
+      NOMADCAP_SYSLOG(np, LOG_ERR, "Can't catch SIGALRM signal\n");
       NOMADCAP_FAILURE(np, "Can't catch SIGALRM signal\n");
+    }
 
     /* Set alarm */
     alarm(np->duration);
