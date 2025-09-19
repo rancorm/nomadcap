@@ -803,7 +803,7 @@ void nomadcap_printdevs(nomadcap_pack_t *np, char *errbuf) {
         inet_ntop(AF_INET, &mask, mask_s, sizeof(mask_s));
 
         /* Output device details */
-        NOMADCAP_STDOUT(np, "%s\t%s\t%s\n", dev->name, net_s, mask_s);
+        NOMADCAP_STDOUT(np, "%-12s %-18s %s\n", dev->name, net_s, mask_s);
       }
     }
   }

@@ -10,7 +10,7 @@ requests that are not intended for the local network.
 - Live capture on specific interface (-i en0)
 - Offline capture from file (-f /path/to/capture.file)
 - Network (-n) and [netmask](https://en.wikipedia.org/wiki/Subnet) (-m) override
-- Monitor specific VLANs (--vlan)
+- Monitor specific VLANs (--vlan X,Y)
 - Capture for a duration (-d 60)
 - Execute script/program on detection (-x /path/to/script.sh)
 - Exit on single match (-1)
