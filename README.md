@@ -10,6 +10,7 @@ requests that are not intended for the local network.
 - Live capture on specific interface (-i en0)
 - Offline capture from file (-f /path/to/capture.file)
 - Network (-n) and [netmask](https://en.wikipedia.org/wiki/Subnet) (-m) override
+- Monitor specific VLANs (--vlan)
 - Capture for a duration (-d 60)
 - Execute script/program on detection (-x /path/to/script.sh)
 - Exit on single match (-1)
@@ -263,7 +264,7 @@ with timestamps (-t). JSON mode prints a JSON object with capture details and re
     "pkts_recv": 4,
     "pkts_drop": 0
   },
-  "version": "0.2"
+  "version": "0.3"
 }%
 ```
 
