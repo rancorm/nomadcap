@@ -18,6 +18,7 @@ requests that are not intended for the local network.
 - Process probes (-p) and announcements (-a)
 - Quick list of intefaces with details (-L)
 - [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
+- Syslog support (-s)
 - [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) timestamps both local (-t) and UTC (-u)
 - Verbose mode (-v)
 
@@ -141,6 +142,7 @@ Duration: 60 seconds
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
+Syslog: 0
 Started at: 1982-06-26T08:50:09.885-0400
 10.0.70.5 [dc:a6:32:e7:ec:72] is looking for 10.0.70.1
 ARP announcement, ignoring...
@@ -172,6 +174,7 @@ Loaded 32,531 OUIs
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
+Syslog: 0
 Started at: 2024-01-11T04:20:09.885-0400
 Local traffic, ignoring...
 Local traffic, ignoring...
@@ -209,6 +212,7 @@ Loading capture file: nomad.pcapng
 Listening on: wlo1
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
+Syslog: 0
 Started at: 2024-01-06T02:50:09.885-0400
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
 10.0.70.5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 10.0.70.1
@@ -279,6 +283,7 @@ Binary: scripts/echo.sh
 Listening on: en0
 Local network: 192.168.2.0
 Network mask: 255.255.255.0
+Syslog: 0
 Started at: 2025-05-13T05:54:00.091-0300
 Local traffic, ignoring...
 Local traffic, ignoring...
