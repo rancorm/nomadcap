@@ -719,9 +719,9 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
     /* Check for broadcasts */
     if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
       /* Check for specific VLAN traffic */
-      if (np->vlan_cnt) {
-	  /* Interested in this VLAN traffic */
-	  return nomadcap_isvlan(np, eth);
+      if (np->vlan_cnt && !nomadcap_isvlan(np, eth)) {
+	  /* Not interested in this VLAN traffic */
+	  return 0;
       }
 
       /* Check for alternative ARP reply announcements */

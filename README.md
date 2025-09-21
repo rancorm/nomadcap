@@ -10,13 +10,13 @@ requests that are not intended for the local network.
 - Live capture on specific interface (-i en0)
 - Offline capture from file (-f /path/to/capture.file)
 - Network (-n) and [netmask](https://en.wikipedia.org/wiki/Subnet) (-m) override
-- Monitor specific VLANs (--vlan X,Y)
+- Monitor specific [VLANs](https://en.wikipedia.org/wiki/VLAN) (--vlan X,Y)
 - Capture for a duration (-d 60)
 - Execute script/program on detection (-x /path/to/script.sh)
 - Exit on single match (-1)
 - [MAC](https://en.wikipedia.org/wiki/MAC_address)/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv & ieee-data* 
 - Process all networks (-A) as a basic request monitor
-- Process probes (-p) and announcements (-a)
+- Process [probes](https://en.wikipedia.org/wiki/Address_Resolution_Protocol#ARP_probe) (-p) and [announcements](https://en.wikipedia.org/wiki/Address_Resolution_Protocol#ARP_announcements) (-a)
 - Quick list of intefaces with details (-L)
 - [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
 - Syslog support (-s)
