@@ -136,7 +136,7 @@ static const struct option nomadcap_long_opts[] = {
 
 #define NOMADCAP_VLANS_SIZE 32
 
-#define NOMADCAP_VERSION "0.3"
+#define NOMADCAP_VERSION "0.4"
 
 /* OUI entry */
 typedef struct nomadcap_oui {
