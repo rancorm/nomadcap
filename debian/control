@@ -2,8 +2,7 @@ Source: nomadcap
 Section: utils 
 Priority: optional
 Maintainer: Jonathan Cormier <jonathan@cormier.co>
-Build-Depends: debhelper (>= 12),
-    debhelper-compat (= 13),
+Build-Depends: debhelper-compat (= 13),
     libpcap-dev,
     libcsv-dev,
     libjansson-dev

@@ -1,3 +1,10 @@
+
+nomadcap (0.4-1) unstable; urgency=low
+
+  * IPv6 support in nomadcap6.
+
+ -- Jonathan Cormier <jonathan@cormier.co>  Wed, 18 Mar 2026 13:27:00 -0300
+
 nomadcap (0.3-1) unstable; urgency=low
 
   * Execute script/program on detection.

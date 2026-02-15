@@ -19,3 +19,10 @@ build/
 
 # macOS
 .DS_Store
+
+# Debian build artifacts
+debian/files
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/.debhelper/
+debian/nomadcap/
