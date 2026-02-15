@@ -331,6 +331,7 @@ Options:
   -A, --all                 All networks
   -1, --once                Exit after single match
   -x, --exec=PATH           Execute on detection
+  -s, --syslog              Send to syslog
   -t, --timestamp           ISO 8601 timestamps
   -u, --utc                 Show timestamps in UTC
   -L, --list                List available interfaces

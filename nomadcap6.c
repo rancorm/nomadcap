@@ -550,6 +550,7 @@ void nomadcap6_usage(nomadcap6_pack_t *np) {
   NOMADCAP6_HELP_OPT(np, "-A, --all", "All networks");
   NOMADCAP6_HELP_OPT(np, "-1, --once", "Exit after single match");
   NOMADCAP6_HELP_OPT(np, "-x, --exec=PATH", "Execute on detection");
+  NOMADCAP6_HELP_OPT(np, "-s, --syslog", "Send to syslog");
   NOMADCAP6_HELP_OPT(np, "-t, --timestamp", "ISO 8601 timestamps");
   NOMADCAP6_HELP_OPT(np, "-u, --utc", "Show timestamps in UTC");
   NOMADCAP6_HELP_OPT(np, "-L, --list", "List available interfaces");
@@ -1033,6 +1034,8 @@ int main(int argc, char *argv[]) {
   if (NOMADCAP6_FLAG(np, NETWORK))
     nomadcap6_netprint(np);
 
+  NOMADCAP6_STDOUT_V(np, "Syslog: %d\n", NOMADCAP6_FLAG(np, SYSLOG) > 0);
+
   memset(ts, 0, sizeof(ts));
 
   nomadcap6_iso8601(np, ts, sizeof(ts));
@@ -1137,6 +1140,9 @@ void nomadcap6_netprint(nomadcap6_pack_t *np) {
 }
 
 void nomadcap6_pcap_setup(nomadcap6_pack_t *np, char *errbuf) {
+  if (NOMADCAP6_FLAG(np, SYSLOG))
+    nomadcap6_openlog(np);
+
   if (NOMADCAP6_FLAG_NOT(np, FILE)) {
     np->p = pcap_open_live(np->device, NOMADCAP6_SNAPLEN, NOMADCAP6_PROMISC,
                            NOMADCAP6_TIMEOUT, errbuf);
