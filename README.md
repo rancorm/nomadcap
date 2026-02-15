@@ -1,6 +1,6 @@
 # nomadcap
 
-[PCAP](https://en.wikipedia.org/wiki/Pcap) tool that aids in locating misconfigure network stacks.
+[PCAP](https://en.wikipedia.org/wiki/Pcap) tool that aids in locating misconfigured network stacks.
 
 The tool's function is to identify [Address Resolution Protocol](https://en.wikipedia.org/wiki/Address_Resolution_Protocol) (ARP)
 requests that are not intended for the local network.
@@ -17,7 +17,7 @@ requests that are not intended for the local network.
 - [MAC](https://en.wikipedia.org/wiki/MAC_address)/OUI to organization look up using IEEE [OUI](https://en.wikipedia.org/wiki/Organizationally_unique_identifier) data (-O) - *libcsv & ieee-data* 
 - Process all networks (-A) as a basic request monitor
 - Process [probes](https://en.wikipedia.org/wiki/Address_Resolution_Protocol#ARP_probe) (-p) and [announcements](https://en.wikipedia.org/wiki/Address_Resolution_Protocol#ARP_announcements) (-a)
-- Quick list of intefaces with details (-L)
+- Quick list of interfaces with details (-L)
 - [JSON](https://en.wikipedia.org/wiki/JSON) output (-j) - *libjansson*
 - Syslog support (-s)
 - [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) timestamps both local (-t) and UTC (-u)
@@ -46,8 +46,8 @@ If you are compiling from source you will need the following packages.
 Download the [latest release](https://github.com/jcormir/nomadcap/releases/latest) Debian package (.deb) and
 install using `dpkg` or your favourite [APT](https://en.wikipedia.org/wiki/APT_(software)) front-end.
 
-```bash
-set VER="0.3-1"
+```zsh
+VER="0.4-1"
 sudo dpkg -i nomadcap_${VER}_amd64.deb
 ```
 
@@ -55,26 +55,26 @@ sudo dpkg -i nomadcap_${VER}_amd64.deb
 
 Install required build tools, libraries, and headers.
 
-```bash
+```zsh
 sudo apt update
 sudo apt install build-essential libpcap0.8 libpcap-dev
 ```
 
 *Optional*. Compile with IEEE OUI support. Install libcsv for parsing.
 
-```bash
+```zsh
 sudo apt install libcsv3 libcsv-dev ieee-data
 ```
 
 *Optional*. Compile with JSON support. Install libjansson for JSON output.
 
-```bash
+```zsh
 sudo apt install libjansson4 libjansson-dev
 ```
 
 Clone this repository and run `make`. Results are in the directory `build/`.
 
-```bash
+```zsh
 git clone https://github.com/rancorm/nomadcap.git
 cd nomadcap
 make
@@ -89,14 +89,14 @@ General tool and command line switch usage.
 
 Run `nomadcap -h` to show help.
 
-```bash
+```zsh
 nomadcap -h
 ```
 
 #### Menu
 
 ```text
-nomadcap v0.3 [Misconfigure network stack identification tool]
+nomadcap v0.4 [Misconfigure network stack identification tool]
 
 Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-Apa1stuLvV]
 
@@ -126,7 +126,7 @@ Run `nomadcap` under sudo, root, or group with permission to perform live captur
 
 #### Example 1
 
-```bash
+```zsh
 sudo nomadcap -v
 ```
 
@@ -159,7 +159,7 @@ Done
 
 #### Example 2
 
-```bash
+```zsh
 sudo nomadcap -Ov -1 -d 0
 ```
 
@@ -191,7 +191,7 @@ Done
 
 #### Example 3
 
-```bash
+```zsh
 nomadcap -Ov -f nomad.pcapng
 ```
 
@@ -233,7 +233,7 @@ Done
 ```
 #### Example 4
 
-```bash
+```zsh
 sudo nomadcap -Ov -j -1 -t
 ```
 
@@ -264,13 +264,13 @@ with timestamps (-t). JSON mode prints a JSON object with capture details and re
     "pkts_recv": 4,
     "pkts_drop": 0
   },
-  "version": "0.3"
+  "version": "0.4"
 }%
 ```
 
 #### Example 5
 
-```
+```zsh
 sudo nomadcap -i en0 -d 0 -v -x scripts/echo.sh
 ```
 
@@ -278,7 +278,7 @@ Capture forever (-d 0) in verbose mode (-v) on interface `en0` (-i). When there 
 detection, run the script or program passed to the argument `-x`, in our example
 `echo.sh` which just prints to stdout.
 
-```
+```zsh
 Flags: 0x00000001
 Binary: scripts/echo.sh
 Listening on: en0
@@ -291,4 +291,75 @@ Local traffic, ignoring...
 10.0.80.2 [30:23:03:8d:f5:e3] is looking for 10.0.80.1
 Executing 'scripts/test.sh'...
 Detected host! src: 10.0.80.2 [30:23:03:8d:f5:e3], tgt: 10.0.80.1 [00:00:00:00:00:00]
+```
+
+## nomadcap6
+
+`nomadcap6` is the IPv6 companion to `nomadcap`. Instead of monitoring ARP, it captures
+[ICMPv6](https://en.wikipedia.org/wiki/ICMPv6) [Neighbor Discovery Protocol](https://en.wikipedia.org/wiki/Neighbor_Discovery_Protocol)
+(NDP) traffic — specifically Neighbor Solicitation (NS) and Neighbor Advertisement (NA) messages —
+to identify hosts soliciting addresses outside the local network prefix.
+
+### Key Differences from nomadcap
+
+- Network is specified as a single CIDR prefix (`-n fe80::/10`) instead of separate `-n` and `-m` flags
+- Monitors NDP (ICMPv6) rather than ARP
+- No `-p` (probes) or `-m` (netmask) options
+
+### Help
+
+Run `nomadcap6 -h` to show help.
+
+```zsh
+nomadcap6 -h
+```
+
+#### Menu
+
+```text
+nomadcap6 v0.4 [Misconfigured IPv6 network stack identification tool]
+
+Usage: nomadcap6 [-i INTF] [-n PREFIX/LENGTH] [--vlan X,Y,Z] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjA1tuLvV]
+
+Options:
+  -i, --interface=INTF      Capture on specific interface
+  -n, --network=PREFIX/LEN  Capture network (e.g. fe80::/10)
+  --vlan X,Y,Z              Specific VLANs to monitor
+  -f, --file=FILE.PCAP      Offline capture using FILE.PCAP
+  -d, --duration=SECONDS    Duration of capture (default: 60, forever: 0)
+  -O, --oui                 MAC OUI to organization
+  -A, --all                 All networks
+  -1, --once                Exit after single match
+  -x, --exec=PATH           Execute on detection
+  -t, --timestamp           ISO 8601 timestamps
+  -u, --utc                 Show timestamps in UTC
+  -L, --list                List available interfaces
+  -j, --json                JSON output
+  -v, --verbose             Verbose mode
+  -V, --version             Version
+```
+
+### Example
+
+```zsh
+sudo nomadcap6 -Ov -1 -d 0
+```
+
+Single match (-1), OUI look up (-O), verbose mode (-v), capture forever (-d 0).
+
+```text
+Looking for interface...
+Found interface: wlo1
+Flags: 0x00000241
+Loading OUI data from /usr/share/ieee-data/oui.csv...
+Loaded 32,531 OUIs
+Listening on: wlo1
+Network prefix: fe80::/64
+Started at: 2025-05-13T05:54:00.091-0300
+Local traffic, ignoring...
+2001:db8:1::5 [dc:a6:32:e7:ec:72 - Raspberry Pi Trading Ltd] is looking for 2001:db8:1::1
+
+Packets received: 8
+Packets dropped: 0
+Done
 ```
