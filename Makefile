@@ -7,7 +7,7 @@ BUILD_DIR:=build/
 
 # Compiler stuff
 CC:=$(shell which gcc)
-CFLAGS=
+CFLAGS=-std=gnu2x
 LDFLAGS=-lpcap
 OBJ=$(BUILD_DIR)$(PROJECT_NAME).o $(BUILD_DIR)syslog.o
 OBJ6=$(BUILD_DIR)$(PROJECT_NAME6).o $(BUILD_DIR)syslog6.o

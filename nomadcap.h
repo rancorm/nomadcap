@@ -196,7 +196,6 @@ typedef struct nomadcap_pack {
 #ifdef USE_LIBJANSSON
 #define NOMADCAP_STDERR(pack, format, ...)                                     \
   do {                                                                         \
-
     if (NOMADCAP_FLAG_NOT(pack, JSON)) {                                       \
       fprintf(stderr, format __VA_OPT__(, ) __VA_ARGS__);                      \
     }                                                                          \
@@ -205,7 +204,6 @@ typedef struct nomadcap_pack {
 #define NOMADCAP_STDOUT(pack, format, ...)                                     \
   do {                                                                         \
     if (NOMADCAP_FLAG_NOT(pack, JSON)) {                                       \
-
       printf(format __VA_OPT__(, ) __VA_ARGS__);                               \
     }                                                                          \
   } while (0)
