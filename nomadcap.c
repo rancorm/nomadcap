@@ -428,7 +428,7 @@ void nomadcap_alarm(int signo) {
   loop = 0;
 }
 
-int nomadcap_signal(int signo, void (*handler)()) {
+int nomadcap_signal(int signo, void (*handler)(int)) {
   struct sigaction sa;
 
   sa.sa_handler = handler;
