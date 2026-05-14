@@ -49,18 +49,32 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      discussions: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: nomadcap-deb
+
+      - name: Extract release notes from debian/changelog
+        run: |
+          awk '
+            /^nomadcap \(/ { count++; next }
+            count == 1 && /^ --/ { exit }
+            count == 1     { print }
+          ' debian/changelog > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: false
+          body_path: RELEASE_NOTES.md
           discussion_category_name: Announcements
           tag_name: ${{ github.ref_name }}
           files: |
