@@ -7,7 +7,7 @@ BUILD_DIR:=build/
 
 # Compiler stuff
 CC:=$(shell which gcc)
-CFLAGS=-std=gnu2x
+CFLAGS=-std=gnu2x -Wall -Wextra -O2
 LDFLAGS=-lpcap
 OBJ=$(BUILD_DIR)$(PROJECT_NAME).o $(BUILD_DIR)common.o $(BUILD_DIR)syslog.o
 OBJ6=$(BUILD_DIR)$(PROJECT_NAME6).o $(BUILD_DIR)common.o $(BUILD_DIR)syslog.o
@@ -43,7 +43,7 @@ ifeq ($(LIBJANSSON_TEST),1)
 	LDFLAGS += -ljansson
 endif
 
-# Clean up after libcsv test
+# Clean up after libjansson test
 $(shell rm -f libjansson_test)
 $(shell rm -f libjansson_test.c)
 
@@ -52,8 +52,12 @@ $(shell rm -f libjansson_test.c)
 all: $(BUILD_DIR)$(PROJECT_NAME) $(BUILD_DIR)$(PROJECT_NAME6)
 
 # Targets
-$(BUILD_DIR)%.o: %.c %.h $(BUILD_DIR)
+$(BUILD_DIR)%.o: %.c %.h | $(BUILD_DIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
+
+# Cross-file header dependencies
+$(BUILD_DIR)$(PROJECT_NAME).o: common.h syslog.h
+$(BUILD_DIR)$(PROJECT_NAME6).o: nomadcap.h common.h syslog.h
 
 $(BUILD_DIR)$(PROJECT_NAME): $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)

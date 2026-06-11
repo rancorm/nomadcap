@@ -62,6 +62,9 @@ void nomadcap6_exit(nomadcap6_pack_t *np, int code) {
       json_decref(np->json);
 #endif /* USE_LIBJANSSON*/
 
+    /* Free BPF program and close capture device */
+    pcap_freecode(&np->code);
+
     if (np->p)
       pcap_close(np->p);
 
@@ -316,6 +319,7 @@ void nomadcap6_usage(nomadcap6_pack_t *np) {
 
   NOMADCAP6_HELP_OPT(np, "-v, --verbose", "Verbose mode");
   NOMADCAP6_HELP_OPT(np, "-V, --version", "Version");
+  NOMADCAP6_HELP_OPT(np, "-h, --help", "Help screen");
 
   NOMADCAP6_STDOUT(np, "\nAuthor: %s\n", NOMADCAP6_AUTHOR);
 }
@@ -330,7 +334,7 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
   struct nd_neighbor_solicit *ns;
 
 #ifdef USE_LIBCSV
-  nomadcap_oui_t *oui_entry;
+  nomadcap_oui_t *oui_entry = NULL;
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -384,10 +388,14 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
 #ifdef USE_LIBJANSSON
   if (NOMADCAP6_FLAG(np, JSON)) {
     results = json_object_get(np->json, "results");
-    result = json_object();
 
-    if (results == NULL)
+    /* No results, start with empty array */
+    if (results == NULL) {
       results = json_array();
+      json_object_set_new(np->json, "results", results);
+    }
+
+    result = json_object();
 
     json_object_set_new(result, "src_ip", json_string(src_ip));
     json_object_set_new(result, "src_ha", json_string(src_ha));
@@ -402,9 +410,6 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
 #endif /* USE_LIBCSV */
 
     json_array_append_new(results, result);
-    json_incref(results);
-
-    NOMADCAP6_JSON_PACK(np, "results", results);
   }
 #endif /* USE_LIBJANSSON */
 }
@@ -412,7 +417,8 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
 nomadcap6_pack_t *nomadcap6_init(char *pname) {
   nomadcap6_pack_t *np;
 
-  np = (nomadcap6_pack_t *)malloc(sizeof(nomadcap6_pack_t));
+  /* Zeroed so never-compiled BPF programs free cleanly */
+  np = (nomadcap6_pack_t *)calloc(1, sizeof(nomadcap6_pack_t));
 
   if (np) {
     /* Set some sane defaults */
@@ -502,7 +508,7 @@ int nomadcap6_interesting(nomadcap6_pack_t *np, struct ether_header *eth,
   return 1;
 }
 
-void nomadcap6_printdevs(nomadcap6_pack_t *np, char *errbuf) {
+void nomadcap6_printdevs(nomadcap6_pack_t *np) {
   struct sockaddr_in6 *sin6, *nm6;
   struct ifaddrs *ifaddr, *ifa;
   char addrbuf[INET6_ADDRSTRLEN];
@@ -720,7 +726,7 @@ int main(int argc, char *argv[]) {
       np->ts_func = gmtime;
       break;
     case 'L':
-      nomadcap6_printdevs(np, errbuf);
+      nomadcap6_printdevs(np);
       NOMADCAP6_SUCCESS(np);
     case 'V':
       NOMADCAP6_STDOUT(np, "%s\n", NOMADCAP6_VERSION);

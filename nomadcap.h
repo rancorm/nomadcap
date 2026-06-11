@@ -287,6 +287,7 @@ typedef struct nomadcap_pack {
 #define NOMADCAP_LO "lo"
 
 /* Function prototypes */
+[[noreturn]] void nomadcap_exit(nomadcap_pack_t *, int);
 void nomadcap_finddev(nomadcap_pack_t *, char *);
 void nomadcap_signals(nomadcap_pack_t *);
 void nomadcap_pcap_setup(nomadcap_pack_t *, char *);

@@ -243,6 +243,7 @@ typedef struct nomadcap6_pack {
 #define NOMADCAP6_TSLEN NOMADCAP_TSLEN
 
 /* Function prototypes */
+[[noreturn]] void nomadcap6_exit(nomadcap6_pack_t *, int);
 void nomadcap6_add_prefix(nomadcap6_pack_t *, struct in6_addr *, int);
 void nomadcap6_finddev(nomadcap6_pack_t *, char *);
 void nomadcap6_signals(nomadcap6_pack_t *);

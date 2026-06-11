@@ -31,7 +31,9 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
       json_decref(np->json);
 #endif /* USE_LIBJANSSON*/
 
-    /* Close capture device */
+    /* Free BPF program and close capture device */
+    pcap_freecode(&np->code);
+
     if (np->p)
       pcap_close(np->p);
 
@@ -177,7 +179,7 @@ int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
   return (netaddr == localnet_hbo);
 }
 
-void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
+void nomadcap_anprint(char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
   int  off = strlen(buf);          /* logical length on entry */
   int  left = buf_size - off;      /* space still available */
 
@@ -254,6 +256,7 @@ void nomadcap_usage(nomadcap_pack_t *np) {
 
   NOMADCAP_HELP_OPT(np, "-v, --verbose", "Verbose mode");
   NOMADCAP_HELP_OPT(np, "-V, --version", "Version");
+  NOMADCAP_HELP_OPT(np, "-h, --help", "Help screen");
 
   NOMADCAP_STDOUT(np, "\nAuthor: %s\n", NOMADCAP_AUTHOR);
 }
@@ -266,7 +269,7 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   size_t w;
 
 #ifdef USE_LIBCSV
-  nomadcap_oui_t *oui_entry;
+  nomadcap_oui_t *oui_entry = NULL;
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -282,9 +285,9 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   w = 0;
 
   /* Print address to their respective buffers */
-  nomadcap_anprint(np, src_ip, sizeof(src_ip), arp->arp_spa, 4, '.', 0);
-  nomadcap_anprint(np, src_ha, sizeof(src_ha), arp->arp_sha, ETH_ALEN, ':', 1);
-  nomadcap_anprint(np, tgt_ip, sizeof(tgt_ip), arp->arp_tpa, 4, '.', 0);
+  nomadcap_anprint(src_ip, sizeof(src_ip), arp->arp_spa, 4, '.', 0);
+  nomadcap_anprint(src_ha, sizeof(src_ha), arp->arp_sha, ETH_ALEN, ':', 1);
+  nomadcap_anprint(tgt_ip, sizeof(tgt_ip), arp->arp_tpa, 4, '.', 0);
 
   /* Timestamp */
   nomadcap_iso8601(np->ts_func, ts, sizeof(ts));
@@ -317,11 +320,14 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 #ifdef USE_LIBJANSSON
   if (NOMADCAP_FLAG(np, JSON)) {
     results = json_object_get(np->json, "results");
-    result = json_object();
 
     /* No results, start with empty array */
-    if (results == NULL)
+    if (results == NULL) {
       results = json_array();
+      json_object_set_new(np->json, "results", results);
+    }
+
+    result = json_object();
 
     /* Add source IP & hardware address, target IP to JSON object */
     json_object_set_new(result, "src_ip", json_string(src_ip));
@@ -340,12 +346,6 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 
     /* Append result JSON object (source IP, source hardware, target IP) */
     json_array_append_new(results, result);
-
-    /* Increment reference so we don't lose it through macro */
-    json_incref(results);
-
-    /* Pack our result in results array */
-    NOMADCAP_JSON_PACK(np, "results", results);
   }
 #endif /* USE_LIBJANSSON */  
 }
@@ -353,7 +353,8 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 nomadcap_pack_t *nomadcap_init(char *pname) {
   nomadcap_pack_t *np;
 
-  np = (nomadcap_pack_t *)malloc(sizeof(nomadcap_pack_t));
+  /* Zeroed so never-compiled BPF programs free cleanly */
+  np = (nomadcap_pack_t *)calloc(1, sizeof(nomadcap_pack_t));
 
   if (np) {
     /* Set some sane defaults */
@@ -581,7 +582,6 @@ int main(int argc, char *argv[]) {
   struct pcap_stat ps;
   char errbuf[PCAP_ERRBUF_SIZE], ts[NOMADCAP_TSLEN];
   char vlan_str[512];
-  uint8_t *pkt;
   int c;
 
 #ifdef USE_LIBJANSSON
