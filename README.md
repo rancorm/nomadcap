@@ -319,7 +319,7 @@ nomadcap6 -h
 ```text
 nomadcap6 v0.4 [Misconfigured IPv6 network stack identification tool]
 
-Usage: nomadcap6 [-i INTF] [-n PREFIX/LENGTH] [--vlan X,Y,Z] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjA1tuLvV]
+Usage: nomadcap6 [-i INTF] [-n PREFIX/LENGTH] [--vlan X,Y,Z] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjAa1stuLvV]
 
 Options:
   -i, --interface=INTF      Capture on specific interface
@@ -329,6 +329,7 @@ Options:
   -d, --duration=SECONDS    Duration of capture (default: 60, forever: 0)
   -O, --oui                 MAC OUI to organization
   -A, --all                 All networks
+  -a, --announce            Process unsolicited neighbor advertisements
   -1, --once                Exit after single match
   -x, --exec=PATH           Execute on detection
   -s, --syslog              Send to syslog

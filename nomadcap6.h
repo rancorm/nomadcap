@@ -31,6 +31,7 @@ Application flags:
 L - List interfaces
 O - OUI look up
 A - Monitor for all networks
+a - Process unsolicited neighbor advertisements
 i - Specific interface
 n - Capture network
 f - Offline capture file
@@ -43,13 +44,14 @@ j - JSON mode
 t - ISO 8601 timestamps
 u - UTC timestamps
 */
-#define NOMADCAP6_OPTS "LOAi:n:f:d:hvV1x:jtsu"
+#define NOMADCAP6_OPTS "LOAai:n:f:d:hvV1x:jtsu"
 
 static const struct option nomadcap6_long_opts[] = {
 #ifdef USE_LIBCSV
   { "oui",       no_argument,       NULL, 'O' },
 #endif
   { "all",       no_argument,       NULL, 'A' },
+  { "announce",  no_argument,       NULL, 'a' },
   { "interface", required_argument, NULL, 'i' },
   { "network",   required_argument, NULL, 'n' },
   { "vlan",      required_argument, NULL, 420 },

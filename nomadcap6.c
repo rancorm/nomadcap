@@ -571,7 +571,7 @@ void nomadcap6_usage(nomadcap6_pack_t *np) {
   NOMADCAP6_STDOUT(np, "j");
 #endif /* USE_LIBJANSSON */
 
-  NOMADCAP6_STDOUT(np, "A1tuLvV]\n\n");
+  NOMADCAP6_STDOUT(np, "Aa1stuLvV]\n\n");
 
   NOMADCAP6_STDOUT(np, "Options:\n");
   NOMADCAP6_HELP_OPT(np, "-i, --interface=INTF", "Capture on specific interface");
@@ -585,6 +585,7 @@ void nomadcap6_usage(nomadcap6_pack_t *np) {
 #endif /* USE_LIBCSV */
 
   NOMADCAP6_HELP_OPT(np, "-A, --all", "All networks");
+  NOMADCAP6_HELP_OPT(np, "-a, --announce", "Process unsolicited neighbor advertisements");
   NOMADCAP6_HELP_OPT(np, "-1, --once", "Exit after single match");
   NOMADCAP6_HELP_OPT(np, "-x, --exec=PATH", "Execute on detection");
   NOMADCAP6_HELP_OPT(np, "-s, --syslog", "Send to syslog");
@@ -957,6 +958,9 @@ int main(int argc, char *argv[]) {
 #endif /* USE_LIBCSV */
     case 'A':
       np->flags |= NOMADCAP6_FLAGS_ALLNET;
+      break;
+    case 'a': /* Process unsolicited neighbor advertisements */
+      np->flags |= NOMADCAP6_FLAGS_ANNOUNCE;
       break;
     case 'i':
       np->device = strdup(optarg);
