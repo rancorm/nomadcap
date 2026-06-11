@@ -310,11 +310,11 @@ typedef struct nomadcap_pack {
 #define NOMADCAP_LO "lo"
 
 /* Function prototypes */
-#ifdef USE_LIBJANSSON
+#ifdef USE_LIBCSV
 int nomadcap_oui_load(nomadcap_pack_t *, char *);
 nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *, struct ether_arp *);
 uint32_t nomadcap_oui_size(nomadcap_pack_t *);
-#endif /* USE_LIBJANSSON */
+#endif /* USE_LIBCSV */
 
 void nomadcap_finddev(nomadcap_pack_t *, char *);
 void nomadcap_signals(nomadcap_pack_t *);
