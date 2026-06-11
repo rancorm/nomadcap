@@ -1122,7 +1122,7 @@ int main(int argc, char *argv[]) {
 }
 
 void nomadcap6_finddev(nomadcap6_pack_t *np, char *errbuf) {
-  pcap_if_t *devs;
+  pcap_if_t *devs, *dev;
 
   NOMADCAP6_STDOUT_V(np, "Looking for interface...\n");
 
@@ -1132,7 +1132,23 @@ void nomadcap6_finddev(nomadcap6_pack_t *np, char *errbuf) {
   if (devs == NULL)
     NOMADCAP6_FAILURE(np, "No interfaces found\n");
 
-  np->device = strdup(devs[0].name);
+  /* Stop at the first non-loopback device with an IPv6 address */
+  for (dev = devs; dev != NULL && np->device == NULL; dev = dev->next) {
+    for (pcap_addr_t *addr = dev->addresses; addr != NULL; addr = addr->next) {
+      if (addr->addr &&
+	addr->addr->sa_family == AF_INET6 &&
+	strncmp(dev->name, NOMADCAP_LO, 2) != 0) {
+	    np->device = strdup(dev->name);
+	    break;
+        }
+    }
+  }
+
+  if (np->device == NULL) {
+    pcap_freealldevs(devs);
+
+    NOMADCAP6_FAILURE(np, "No suitable interface found\n");
+  }
 
   NOMADCAP6_STDOUT_V(np, "Found interface: %s\n", np->device);
 

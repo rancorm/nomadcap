@@ -1155,7 +1155,7 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
   }
 
   /* Loop through devices stopping at the first device with network details */
-  for (dev = devs; dev != NULL; dev = dev->next) {
+  for (dev = devs; dev != NULL && np->device == NULL; dev = dev->next) {
     /* Loop through device addresses */
     for (pcap_addr_t *addr = dev->addresses; addr != NULL; addr = addr->next) {
       /* Check for non-loopback devices with IPv4 */
@@ -1166,6 +1166,13 @@ void nomadcap_finddev(nomadcap_pack_t *np, char *errbuf) {
 	    break;
         }
     }
+  }
+
+  if (np->device == NULL) {
+    pcap_freealldevs(devs);
+
+    NOMADCAP_SYSLOG(np, LOG_ERR, "No suitable interface found\n");
+    NOMADCAP_FAILURE(np, "No suitable interface found\n");
   }
 
   NOMADCAP_STDOUT_V(np, "Found interface: %s\n", np->device);
