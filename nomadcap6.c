@@ -968,7 +968,8 @@ int main(int argc, char *argv[]) {
     case 'n': {
 	struct in6_addr addr;
 	char *slash = strchr(optarg, '/');
-	int plen;
+	char *end;
+	long plen;
 
 	if (!slash)
 	  NOMADCAP6_FAILURE(np, "Invalid IPv6 prefix format (use address/prefix)\n");
@@ -979,9 +980,9 @@ int main(int argc, char *argv[]) {
 	if (inet_pton(AF_INET6, optarg, &addr) <= 0)
 	  NOMADCAP6_FAILURE(np, "Invalid IPv6 address\n");
 
-	plen = atoi(slash);
+	plen = strtol(slash, &end, 10);
 
-	if (plen < 0 || plen > 128)
+	if (*slash == '\0' || *end != '\0' || plen < 0 || plen > 128)
 	  NOMADCAP6_FAILURE(np, "Invalid IPv6 prefix length\n");
 
 	nomadcap6_add_prefix(np, &addr, plen);
@@ -992,9 +993,18 @@ int main(int argc, char *argv[]) {
       np->flags |= NOMADCAP6_FLAGS_FILE;
       np->filename = strdup(optarg);
       break;
-    case 'd':
-      np->duration = strtol(optarg, NULL, 0);
+    case 'd': {
+      char *end;
+
+      /* Convert user supplied duration using special value 0 for forever */
+      long duration = strtol(optarg, &end, 10);
+
+      if (*optarg == '\0' || *end != '\0' || duration < 0)
+        NOMADCAP6_FAILURE(np, "Invalid duration: %s\n", optarg);
+
+      np->duration = (uint32_t)duration;
       break;
+    }
     case 'v':
       np->flags |= NOMADCAP6_FLAGS_VERBOSE;
       break;

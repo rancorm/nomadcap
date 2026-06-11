@@ -78,28 +78,6 @@ void nomadcap_exec(nomadcap_pack_t *np, char **argv) {
   }
 }
 
-uint32_t nomadcap_addr2uint(nomadcap_pack_t *np, char *addr) {
-  int i;
-  uint32_t result;
-  char *token;
-  char ip_copy[INET_ADDRSTRLEN];
-
-  /* Clear memory and copy address for token work */  
-  memset(ip_copy, 0, sizeof(ip_copy));
-  strncpy(ip_copy, addr, INET_ADDRSTRLEN - 1);
-
-  /* Split the IP address into its four octets */
-  token = strtok(ip_copy, ".");
-
-  /* Loop over tokens */
-  for (result = 0, i = 0; i < 4 && token != NULL; i++) {
-      result |= (atoi(token) << (24 - i * 8));
-      token = strtok(NULL, ".");
-  }
-
-  return ntohl(result);
-}
-
 void nomadcap_exit(nomadcap_pack_t *np, int code) {
 #ifdef USE_LIBCSV
   int i;
@@ -177,9 +155,14 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
       NOMADCAP_WARNING(np, "WARNING: Using -f (file) capture without -n (network) switch\n");
 
   /* Exit with message to use netmask switch */
-  if (NOMADCAP_FLAG(np, NETWORK) && 
+  if (NOMADCAP_FLAG(np, NETWORK) &&
     NOMADCAP_FLAG_NOT(np, NETMASK))
       NOMADCAP_FAILURE(np, "Use -m (netmask) with -n (network) switch\n");
+
+  /* Netmask alone is silently overwritten by the interface lookup */
+  if (NOMADCAP_FLAG(np, NETMASK) &&
+    NOMADCAP_FLAG_NOT(np, NETWORK))
+      NOMADCAP_FAILURE(np, "Use -n (network) with -m (netmask) switch\n");
 
   /* Leave it to libpcap to find an interface */
   if (np->device == NULL)
@@ -974,20 +957,32 @@ int main(int argc, char *argv[]) {
       break;
     case 'n': /* Capture network */
       np->flags |= NOMADCAP_FLAGS_NETWORK;
-      np->localnet = nomadcap_addr2uint(np, optarg);
+
+      if (inet_pton(AF_INET, optarg, &np->localnet) != 1)
+        NOMADCAP_FAILURE(np, "Invalid network address: %s\n", optarg);
       break;
     case 'm': /* Capture netmask */
       np->flags |= NOMADCAP_FLAGS_NETMASK;
-      np->netmask = nomadcap_addr2uint(np, optarg);
+
+      if (inet_pton(AF_INET, optarg, &np->netmask) != 1)
+        NOMADCAP_FAILURE(np, "Invalid netmask: %s\n", optarg);
       break;
     case 'f': /* Offline capture file */
       np->flags |= NOMADCAP_FLAGS_FILE;
       np->filename = strdup(optarg);
       break;
-    case 'd': /* Capture duration */
-      /* Convert user supplied duration using special value 0 */
-      np->duration = strtol(optarg, NULL, 0);
+    case 'd': { /* Capture duration */
+      char *end;
+
+      /* Convert user supplied duration using special value 0 for forever */
+      long duration = strtol(optarg, &end, 10);
+
+      if (*optarg == '\0' || *end != '\0' || duration < 0)
+        NOMADCAP_FAILURE(np, "Invalid duration: %s\n", optarg);
+
+      np->duration = (uint32_t)duration;
       break;
+    }
     case 'v': /* Verbose */
       np->flags |= NOMADCAP_FLAGS_VERBOSE;
       break;
