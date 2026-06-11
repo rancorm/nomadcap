@@ -15,8 +15,8 @@
 #define NOMADCAP6_PREFIX_ENTRIES 8
 
 /* PCAP stuff */
-/* ICMPv6 */
-#define NOMADCAP6_FILTER "icmp6"
+/* ICMPv6, plain and 802.1Q tagged */
+#define NOMADCAP6_FILTER "icmp6 or (vlan and icmp6)"
 #define NOMADCAP6_SNAPLEN 128
 #define NOMADCAP6_TIMEOUT 500
 #define NOMADCAP6_PROMISC 0 

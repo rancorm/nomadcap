@@ -38,9 +38,12 @@
 #define NOMADCAP_DURATION 60
 
 /* PCAP stuff */
-/* Ethernet ARP broadcast requests */
-#define NOMADCAP_FILTER "arp"
+/* Ethernet ARP broadcast requests, plain and 802.1Q tagged */
+#define NOMADCAP_FILTER "arp or (vlan and arp)"
 #define NOMADCAP_SNAPLEN 64
+
+/* 802.1Q tag length */
+#define NOMADCAP_VLAN_HDRLEN 4
 #define NOMADCAP_TIMEOUT 500
 #define NOMADCAP_PROMISC 0 
 

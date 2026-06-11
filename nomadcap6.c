@@ -756,60 +756,56 @@ int nomadcap6_isvlan(nomadcap6_pack_t *np, struct ether_header *eh) {
 }
 
 int nomadcap6_interesting(nomadcap6_pack_t *np, struct ether_header *eth,
-                         struct ip6_hdr *ip, struct icmp6_hdr *icmp,
+                         struct icmp6_hdr *icmp,
 			 const struct pcap_pkthdr *ph) {
-  if (ph->caplen >= sizeof(struct ether_header) + sizeof(struct ip6_hdr) +
-      sizeof(struct icmp6_hdr)) {
-	/* Check for specific VLAN traffic */
-	if (np->vlan_cnt && !nomadcap6_isvlan(np, eth)) {
-	  /* Not interested in this VLAN traffic */
-	  return 0;
-	}
+  /* Offset of the ND message within the captured packet */
+  size_t nd_off = (const u_char *)icmp - (const u_char *)eth;
 
-	/* Check for ICMPv6 Neighbor Discovery messages */
-	if (icmp->icmp6_type != ND_NEIGHBOR_SOLICIT &&
-			icmp->icmp6_type != ND_NEIGHBOR_ADVERT) {
-	  NOMADCAP6_STDOUT_V(np, "Non-NDP ICMPv6 message, ignoring...\n");
-	  NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Non-NDP ICMPv6 message, ignoring...\n");
-		
-	  return 0;
-	}
-
-	/* Handle Neighbor Solicitation (equivalent to ARP request) */
-	if (icmp->icmp6_type == ND_NEIGHBOR_SOLICIT) {
-	  /* NS should be sent to solicited-node multicast */
-	  if ((eth->ether_dhost[0] & 0x01) == 0) {
-		NOMADCAP6_STDOUT_V(np, "Unicast NS, ignoring...\n");
-		NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Unicast NS, ignoring...\n");
-		return 0;
-	  }
-
-	  return 1;
-	}
-
-	/* Handle Neighbor Advertisement (equivalent to ARP reply) */
-	if (icmp->icmp6_type == ND_NEIGHBOR_ADVERT) {
-	  struct nd_neighbor_advert *na = (struct nd_neighbor_advert *)icmp;
-
-	  /* Check for unsolicited advertisement (announcement) */
-	  if ((na->nd_na_flags_reserved & ND_NA_FLAG_SOLICITED) == 0) {
-	    if (NOMADCAP6_FLAG_NOT(np, ANNOUNCE)) {
-		  NOMADCAP6_STDOUT_V(np, "Unsolicited Neighbor Advertisement (announcement), ignoring...\n");
-		  NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Unsolicited Neighbor Advertisement (announcement), ignoring...\n");
-		    
-		  return 0;
-		}
-
-		return 1;
-	  }
-
-      /* Solicited NA */
-	  return 1;
-    }
+  /* Check for specific VLAN traffic */
+  if (np->vlan_cnt && !nomadcap6_isvlan(np, eth)) {
+    /* Not interested in this VLAN traffic */
+    return 0;
   }
 
-  /* Boring traffic */
-  return 0;
+  /* Check for ICMPv6 Neighbor Discovery messages */
+  if (icmp->icmp6_type != ND_NEIGHBOR_SOLICIT &&
+		  icmp->icmp6_type != ND_NEIGHBOR_ADVERT) {
+    NOMADCAP6_STDOUT_V(np, "Non-NDP ICMPv6 message, ignoring...\n");
+    NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Non-NDP ICMPv6 message, ignoring...\n");
+
+    return 0;
+  }
+
+  /* ND target address must be captured (same layout for NS and NA) */
+  if (ph->caplen < nd_off + sizeof(struct nd_neighbor_solicit))
+    return 0;
+
+  /* Handle Neighbor Solicitation (equivalent to ARP request) */
+  if (icmp->icmp6_type == ND_NEIGHBOR_SOLICIT) {
+    /* NS should be sent to solicited-node multicast */
+    if ((eth->ether_dhost[0] & 0x01) == 0) {
+      NOMADCAP6_STDOUT_V(np, "Unicast NS, ignoring...\n");
+      NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Unicast NS, ignoring...\n");
+      return 0;
+    }
+
+    return 1;
+  }
+
+  /* Handle Neighbor Advertisement (equivalent to ARP reply) */
+  struct nd_neighbor_advert *na = (struct nd_neighbor_advert *)icmp;
+
+  /* Check for unsolicited advertisement (announcement) */
+  if ((na->nd_na_flags_reserved & ND_NA_FLAG_SOLICITED) == 0 &&
+      NOMADCAP6_FLAG_NOT(np, ANNOUNCE)) {
+    NOMADCAP6_STDOUT_V(np, "Unsolicited Neighbor Advertisement (announcement), ignoring...\n");
+    NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Unsolicited Neighbor Advertisement (announcement), ignoring...\n");
+
+    return 0;
+  }
+
+  /* Solicited NA, or unsolicited with -a */
+  return 1;
 }
 
 void nomadcap6_printdevs(nomadcap6_pack_t *np, char *errbuf) {
@@ -850,20 +846,33 @@ void nomadcap6_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_c
   nomadcap6_pack_t *np = (nomadcap6_pack_t *)user;
   struct ip6_hdr *ip;
   struct icmp6_hdr *icmp;
+  size_t offset = sizeof(struct ether_header);
   int is_local;
 
   eth = (struct ether_header *)pkt;
-  ip = (struct ip6_hdr *)(pkt + sizeof(struct ether_header));
+
+  /* 802.1Q tag sits between the Ethernet header and the IPv6 header */
+  if (h->caplen >= sizeof(struct ether_header) &&
+      ntohs(eth->ether_type) == ETHERTYPE_VLAN)
+    offset += NOMADCAP_VLAN_HDRLEN;
+
+  /* IPv6 and ICMPv6 headers must be captured */
+  if (h->caplen < offset + sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr)) {
+    if (!loop) pcap_breakloop(np->p);
+
+    return;
+  }
+
+  ip = (struct ip6_hdr *)(pkt + offset);
 
   /* Verify next header is ICMPv6 (extension headers not supported) */
   if (ip->ip6_nxt != IPPROTO_ICMPV6) {
     NOMADCAP6_STDOUT_V(np, "IPv6 next header %d, ignoring...\n", ip->ip6_nxt);
   } else {
-    icmp = (struct icmp6_hdr *)(pkt + sizeof(struct ether_header) +
-                                sizeof(struct ip6_hdr));
+    icmp = (struct icmp6_hdr *)(pkt + offset + sizeof(struct ip6_hdr));
 
     /* Check for interesting traffic */
-    if (nomadcap6_interesting(np, eth, ip, icmp, h)) {
+    if (nomadcap6_interesting(np, eth, icmp, h)) {
       is_local = 0;
 
       /* Check if target is on the local network */

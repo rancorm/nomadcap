@@ -432,14 +432,17 @@ void nomadcap_json_print(nomadcap_pack_t *np) {
 
 int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
   bpf_u_int32 netmask_hbo, localnet_hbo;
-  bpf_u_int32 netaddr, netaddr_hbo;
+  bpf_u_int32 netaddr, netaddr_hbo, spa;
 
   /* Convert to host byte order */
   netmask_hbo = ntohl(np->netmask);
   localnet_hbo = ntohl(np->localnet);
 
+  /* Copy out of the packet; arp_spa is not 4-byte aligned */
+  memcpy(&spa, arp->arp_spa, sizeof(spa));
+
   /* Perform AND operation between IP address and the local netmask */
-  netaddr_hbo = htonl(*((bpf_u_int32 *)arp->arp_spa));
+  netaddr_hbo = ntohl(spa);
   netaddr = netaddr_hbo & netmask_hbo;
 
   /* Check if ARP was meant for the local network */
@@ -741,67 +744,67 @@ int nomadcap_isvlan(nomadcap_pack_t *np, struct ether_header *eh) {
 }
 
 int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
-                         struct ether_arp *arp, const struct pcap_pkthdr *ph) {
-  /* Check for packet headers */
-  if (ph->caplen >= sizeof(struct ether_header) + sizeof(struct arphdr)) {
-    /* Check for broadcasts */
-    if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) == 0) {
-      /* Check for specific VLAN traffic */
-      if (np->vlan_cnt && !nomadcap_isvlan(np, eth)) {
-	  /* Not interested in this VLAN traffic */
-	  return 0;
-      }
+                         struct ether_arp *arp) {
+  /* Check for broadcasts */
+  if (memcmp(eth->ether_dhost, NOMADCAP_BROADCAST, ETH_ALEN) != 0)
+    return 0;
 
-      /* Check for alternative ARP reply announcements */
-      if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REPLY &&
-        memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
-        memcmp(arp->arp_sha, arp->arp_tha, arp->ea_hdr.ar_hln) == 0) {
-          /* Not processing ARP announcments */
-          if (NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
-            NOMADCAP_STDOUT_V(np, "ARP announcement (reply), ignoring...\n");
-	    NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP announcement (reply), ignoring...\n");
+  /* Only Ethernet/IPv4 ARP; the lengths below come from the packet
+     and bound the memcmp() calls */
+  if (arp->ea_hdr.ar_hln != ETH_ALEN || arp->ea_hdr.ar_pln != 4)
+    return 0;
 
-	    return 0;
-          }
-
-          /* Interesting ARP reply */
-          return 1;
-      }
-
-      /* Only looking for ARP requests */
-      if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
-        NOMADCAP_STDOUT_V(np, "Non ARP request, ignoring...\n");
-        NOMADCAP_SYSLOG_V(np, LOG_INFO, "Non ARP request, ignoring...\n");
-
-        return 0;
-      }
-
-      /* Check for ARP probe */
-      if (memcmp(arp->arp_spa, NOMADCAP_NONE, arp->ea_hdr.ar_pln) == 0 &&
-	  memcmp(arp->arp_tha, NOMADCAP_UNKNOWN, arp->ea_hdr.ar_hln) == 0 &&
-          NOMADCAP_FLAG_NOT(np, PROBES)) {
-	NOMADCAP_STDOUT_V(np, "ARP probe, ignoring...\n");
-        NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP probe, ignoring...\n");
-
-        return 0;
-      }
-
-      /* Check for ARP announcements */
-      if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
-          NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
-	NOMADCAP_STDOUT_V(np, "ARP announcement, ignoring...\n");
-        NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP announcement, ignoring...\n");
-
-        return 0;
-      }
-
-      /* Interesting traffic */
-      return 1;
-    }
+  /* Check for specific VLAN traffic */
+  if (np->vlan_cnt && !nomadcap_isvlan(np, eth)) {
+    /* Not interested in this VLAN traffic */
+    return 0;
   }
 
-  /* Boring traffic */
-  return 0;
+  /* Check for alternative ARP reply announcements */
+  if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REPLY &&
+    memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
+    memcmp(arp->arp_sha, arp->arp_tha, arp->ea_hdr.ar_hln) == 0) {
+      /* Not processing ARP announcments */
+      if (NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
+        NOMADCAP_STDOUT_V(np, "ARP announcement (reply), ignoring...\n");
+	NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP announcement (reply), ignoring...\n");
+
+	return 0;
+      }
+
+      /* Interesting ARP reply */
+      return 1;
+  }
+
+  /* Only looking for ARP requests */
+  if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REQUEST) {
+    NOMADCAP_STDOUT_V(np, "Non ARP request, ignoring...\n");
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Non ARP request, ignoring...\n");
+
+    return 0;
+  }
+
+  /* Check for ARP probe */
+  if (memcmp(arp->arp_spa, NOMADCAP_NONE, arp->ea_hdr.ar_pln) == 0 &&
+      memcmp(arp->arp_tha, NOMADCAP_UNKNOWN, arp->ea_hdr.ar_hln) == 0 &&
+      NOMADCAP_FLAG_NOT(np, PROBES)) {
+    NOMADCAP_STDOUT_V(np, "ARP probe, ignoring...\n");
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP probe, ignoring...\n");
+
+    return 0;
+  }
+
+  /* Check for ARP announcements */
+  if (memcmp(arp->arp_spa, arp->arp_tpa, arp->ea_hdr.ar_pln) == 0 &&
+      NOMADCAP_FLAG_NOT(np, ANNOUNCE)) {
+    NOMADCAP_STDOUT_V(np, "ARP announcement, ignoring...\n");
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "ARP announcement, ignoring...\n");
+
+    return 0;
+  }
+
+  /* Interesting traffic */
+  return 1;
 }
 
 void nomadcap_printdevs(nomadcap_pack_t *np, char *errbuf) {
@@ -844,6 +847,7 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
   struct ether_header *eth;
   struct ether_arp *arp;
   nomadcap_pack_t *np = (nomadcap_pack_t *)user;
+  size_t offset = sizeof(struct ether_header);
   int is_local;
   char sha_str[18], tha_str[18];
   char spa_str[INET_ADDRSTRLEN], tpa_str[INET_ADDRSTRLEN];
@@ -851,11 +855,23 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
   /* Cast packet to Ethernet header */
   eth = (struct ether_header *)pkt;
 
+  /* 802.1Q tag sits between the Ethernet header and the ARP message */
+  if (h->caplen >= sizeof(struct ether_header) &&
+      ntohs(eth->ether_type) == ETHERTYPE_VLAN)
+    offset += NOMADCAP_VLAN_HDRLEN;
+
+  /* Entire ARP message must be captured */
+  if (h->caplen < offset + sizeof(struct ether_arp)) {
+    if (!loop) pcap_breakloop(np->p);
+
+    return;
+  }
+
   /* Cast packet to ARP header */
-  arp = (struct ether_arp *)(pkt + sizeof(struct ether_header));
+  arp = (struct ether_arp *)(pkt + offset);
 
   /* Check for interesting traffic */
-  if (nomadcap_interesting(np, eth, arp, h)) {
+  if (nomadcap_interesting(np, eth, arp)) {
     /* Check if ARP request is not local */
     is_local = nomadcap_islocalnet(np, arp);
 
