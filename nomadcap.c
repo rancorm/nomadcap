@@ -242,7 +242,7 @@ nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
            arp->arp_sha[2]);
 
   /* Check OUI cache for a match */
-  for (cindex = 0; np->oui_cache[cindex]; cindex++) {
+  for (cindex = 0; cindex < NOMADCAP_OUI_CSIZE && np->oui_cache[cindex]; cindex++) {
     assignment = np->oui_cache[cindex]->assignment;
 
     if (strncmp(oui, assignment, 6) == 0) {
@@ -254,8 +254,12 @@ nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
   }
 
   /* Loop through OUI entries looking for a match */
-  for (index = 0; index < np->oui_num; index++) {
+  for (index = 0; index < (int)np->oui_num; index++) {
     assignment = np->oui_data[index].assignment;
+
+    /* Malformed row with missing assignment field */
+    if (assignment == NULL)
+      continue;
 
     /* Increment entry count and return the entry */
     if (strncmp(oui, assignment, 6) == 0) {
@@ -263,14 +267,14 @@ nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
 
       /* Find first empty cache slot */
       cindex = 0;
-      while(np->oui_cache[cindex] && 
-        cindex < NOMADCAP_OUI_CSIZE) cindex++;
+      while(cindex < NOMADCAP_OUI_CSIZE &&
+        np->oui_cache[cindex]) cindex++;
 
       /* Better method to check count of OUI lookkups? */
 
       /* Cache is full, replace random cache entry */
       if (cindex == NOMADCAP_OUI_CSIZE)
-        cindex = rand() % 256;
+        cindex = rand() % NOMADCAP_OUI_CSIZE;
 
       /* Insert found OUI entry to cache */
       np->oui_cache[cindex] = &np->oui_data[index];
@@ -284,21 +288,32 @@ nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
 
 void nomadcap_oui_cb1(void *field, size_t num, void *data) {
   nomadcap_pack_t *np;
-  int index;
+  uint32_t index;
 
   np = (nomadcap_pack_t *)data;
-  index = 0;
 
-  /* Calculate index of OUI entry */
-  if (np->oui_num > 0)
-    index = np->oui_num - 1;
+  /* Entry being filled; rows are committed in _cb2 */
+  index = np->oui_num;
 
   /* Add more memory */
   if (np->oui_num == np->oui_max) {
+    nomadcap_oui_t *oui_data;
+
     np->oui_max += NOMADCAP_OUI_ENTRIES;
-    np->oui_data = (nomadcap_oui_t *)realloc(
+    oui_data = (nomadcap_oui_t *)realloc(
         np->oui_data, np->oui_max * sizeof(nomadcap_oui_t));
+
+    if (oui_data == NULL) {
+      perror("Memory allocation error");
+      nomadcap_exit(np, EXIT_FAILURE);
+    }
+
+    np->oui_data = oui_data;
   }
+
+  /* Start each row from a clean entry; realloc memory is uninitialized */
+  if (np->oui_index == 0)
+    memset(&np->oui_data[index], 0, sizeof(nomadcap_oui_t));
 
   /* Assign field data */
   switch (np->oui_index) {
@@ -324,19 +339,32 @@ void nomadcap_oui_cb1(void *field, size_t num, void *data) {
 
 void nomadcap_oui_cb2(int num, void *data) {
   nomadcap_pack_t *np;
+  nomadcap_oui_t *entry;
 
   np = (nomadcap_pack_t *)data;
-
-  /* End of OUI entry row, increase number of OUIs */
-  np->oui_num++;
 
   /* Reset field index */
   np->oui_index = 0;
 
-  /* Set OUI entry count to zero */
-  if (np->oui_num > 0) {
-    np->oui_data[np->oui_num - 1].count = 0;
+  /* Row ended without any fields parsed */
+  if (np->oui_num >= np->oui_max)
+    return;
+
+  entry = &np->oui_data[np->oui_num];
+
+  /* Skip the CSV header row */
+  if (entry->registry && strcmp(entry->registry, "Registry") == 0) {
+    free(entry->registry);
+    free(entry->assignment);
+    free(entry->org_name);
+    free(entry->org_address);
+    memset(entry, 0, sizeof(*entry));
+
+    return;
   }
+
+  /* End of OUI entry row, increase number of OUIs */
+  np->oui_num++;
 }
 
 uint32_t nomadcap_oui_size(nomadcap_pack_t *np) { return np->oui_num; }

@@ -335,7 +335,7 @@ nomadcap6_oui_t *nomadcap6_oui_lookup(nomadcap6_pack_t *np,
   snprintf(oui, sizeof(oui), "%02X%02X%02X", mac[0], mac[1], mac[2]);
 
   /* Check OUI cache for a match */
-  for (cindex = 0; np->oui_cache[cindex]; cindex++) {
+  for (cindex = 0; cindex < NOMADCAP6_OUI_CSIZE && np->oui_cache[cindex]; cindex++) {
     assignment = np->oui_cache[cindex]->assignment;
 
     if (strncmp(oui, assignment, 6) == 0) {
@@ -346,18 +346,22 @@ nomadcap6_oui_t *nomadcap6_oui_lookup(nomadcap6_pack_t *np,
     }
   }
 
-  for (index = 0; index < np->oui_num; index++) {
+  for (index = 0; index < (int)np->oui_num; index++) {
     assignment = np->oui_data[index].assignment;
+
+    /* Malformed row with missing assignment field */
+    if (assignment == NULL)
+      continue;
 
     if (strncmp(oui, assignment, 6) == 0) {
       np->oui_data[index].count++;
 
       cindex = 0;
-      while(np->oui_cache[cindex] &&
-        cindex < NOMADCAP6_OUI_CSIZE) cindex++;
+      while(cindex < NOMADCAP6_OUI_CSIZE &&
+        np->oui_cache[cindex]) cindex++;
 
       if (cindex == NOMADCAP6_OUI_CSIZE)
-        cindex = rand() % 256;
+        cindex = rand() % NOMADCAP6_OUI_CSIZE;
 
       np->oui_cache[cindex] = &np->oui_data[index];
 
@@ -370,19 +374,31 @@ nomadcap6_oui_t *nomadcap6_oui_lookup(nomadcap6_pack_t *np,
 
 void nomadcap6_oui_cb1(void *field, size_t num, void *data) {
   nomadcap6_pack_t *np;
-  int index;
+  uint32_t index;
 
   np = (nomadcap6_pack_t *)data;
-  index = 0;
 
-  if (np->oui_num > 0)
-    index = np->oui_num - 1;
+  /* Entry being filled; rows are committed in _cb2 */
+  index = np->oui_num;
 
   if (np->oui_num == np->oui_max) {
+    nomadcap6_oui_t *oui_data;
+
     np->oui_max += NOMADCAP6_OUI_ENTRIES;
-    np->oui_data = (nomadcap6_oui_t *)realloc(
+    oui_data = (nomadcap6_oui_t *)realloc(
         np->oui_data, np->oui_max * sizeof(nomadcap6_oui_t));
+
+    if (oui_data == NULL) {
+      perror("Memory allocation error");
+      nomadcap6_exit(np, EXIT_FAILURE);
+    }
+
+    np->oui_data = oui_data;
   }
+
+  /* Start each row from a clean entry; realloc memory is uninitialized */
+  if (np->oui_index == 0)
+    memset(&np->oui_data[index], 0, sizeof(nomadcap6_oui_t));
 
   switch (np->oui_index) {
   case 0:
@@ -406,15 +422,30 @@ void nomadcap6_oui_cb1(void *field, size_t num, void *data) {
 
 void nomadcap6_oui_cb2(int num, void *data) {
   nomadcap6_pack_t *np;
+  nomadcap6_oui_t *entry;
 
   np = (nomadcap6_pack_t *)data;
 
-  np->oui_num++;
   np->oui_index = 0;
 
-  if (np->oui_num > 0) {
-    np->oui_data[np->oui_num - 1].count = 0;
+  /* Row ended without any fields parsed */
+  if (np->oui_num >= np->oui_max)
+    return;
+
+  entry = &np->oui_data[np->oui_num];
+
+  /* Skip the CSV header row */
+  if (entry->registry && strcmp(entry->registry, "Registry") == 0) {
+    free(entry->registry);
+    free(entry->assignment);
+    free(entry->org_name);
+    free(entry->org_address);
+    memset(entry, 0, sizeof(*entry));
+
+    return;
   }
+
+  np->oui_num++;
 }
 
 uint32_t nomadcap6_oui_size(nomadcap6_pack_t *np) { return np->oui_num; }
