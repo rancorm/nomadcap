@@ -41,8 +41,8 @@ extern int optopt;
 #include "nomadcap6.h"
 #include "syslog6.h"
 
-/* Global termination control */
-int loop = 1;
+/* Global termination control, set from signal handlers */
+volatile sig_atomic_t loop = 1;
 
 size_t nomadcap6_uint2str(char *buf, size_t buf_size,
 			 const uint16_t *array, size_t count,
@@ -505,9 +505,14 @@ void nomadcap6_json_print(nomadcap6_pack_t *np) {
 #endif /* USE_LIBJANSSON */
 
 void nomadcap6_cleanup(int signo) {
+  ssize_t w;
+
   loop = 0;
 
-  fprintf(stderr, "Interrupt signal\n");
+  /* write() is async-signal-safe, fprintf() is not */
+  w = write(STDERR_FILENO, "Interrupt signal\n", 17);
+  (void)w;
+  (void)signo;
 }
 
 void nomadcap6_alarm(int signo) {
@@ -537,7 +542,8 @@ void nomadcap6_iso8601(nomadcap6_pack_t *np, char *ts, size_t ts_size) {
 
     timeinfo = np->ts_func(&rawtime);
 
-    strftime(ts, ts_size, "%Y-%m-%dT%I:%M:%S.", timeinfo);
+    /* ISO 8601 uses the 24-hour clock */
+    strftime(ts, ts_size, "%Y-%m-%dT%H:%M:%S.", timeinfo);
 
     /* Append milliseconds */
     gettimeofday(&tv, NULL);

@@ -11,8 +11,8 @@ extern int optopt;
 #include "nomadcap.h"
 #include "syslog.h"
 
-/* Global termination control */
-int loop = 1;
+/* Global termination control, set from signal handlers */
+volatile sig_atomic_t loop = 1;
 
 size_t nomadcap_uint2str(char *buf, size_t buf_size,
 			 const uint16_t *array, size_t count,
@@ -450,9 +450,14 @@ int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
 }
 
 void nomadcap_cleanup(int signo) {
+  ssize_t w;
+
   loop = 0;
 
-  fprintf(stderr, "Interrupt signal\n");
+  /* write() is async-signal-safe, fprintf() is not */
+  w = write(STDERR_FILENO, "Interrupt signal\n", 17);
+  (void)w;
+  (void)signo;
 }
 
 void nomadcap_alarm(int signo) {
@@ -484,8 +489,8 @@ void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
     /* Call timestamp function (default localtime) */
     timeinfo = np->ts_func(&rawtime);
 
-    /* Format the time as a string in ISO 8601 format */
-    strftime(ts, ts_size, "%Y-%m-%dT%I:%M:%S.", timeinfo);
+    /* Format the time as a string in ISO 8601 format (24-hour clock) */
+    strftime(ts, ts_size, "%Y-%m-%dT%H:%M:%S.", timeinfo);
 
     /* Append milliseconds */
     gettimeofday(&tv, NULL);
