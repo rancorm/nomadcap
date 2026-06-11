@@ -10,7 +10,7 @@ CC:=$(shell which gcc)
 CFLAGS=-std=gnu2x
 LDFLAGS=-lpcap
 OBJ=$(BUILD_DIR)$(PROJECT_NAME).o $(BUILD_DIR)syslog.o
-OBJ6=$(BUILD_DIR)$(PROJECT_NAME6).o $(BUILD_DIR)syslog6.o
+OBJ6=$(BUILD_DIR)$(PROJECT_NAME6).o $(BUILD_DIR)syslog.o
 
 # Paths to standard tools
 MKDIR	:=$(shell which mkdir)

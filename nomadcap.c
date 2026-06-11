@@ -121,7 +121,7 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
 
     /* Close syslog */
     if (NOMADCAP_FLAG(np, SYSLOG))
-      nomadcap_closelog(np);
+      nomadcap_closelog();
 
     /* Free structure */
     free(np);
@@ -1211,7 +1211,7 @@ void nomadcap_netprint(nomadcap_pack_t *np) {
 
 void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
   if (NOMADCAP_FLAG(np, SYSLOG))
-    nomadcap_openlog(np);
+    nomadcap_openlog(np->pname);
   
   /* No file name from user, live capture */
   if (NOMADCAP_FLAG_NOT(np, FILE)) {

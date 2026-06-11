@@ -1,10 +1,12 @@
+#include <stdio.h>
+
 #include "syslog.h"
 
-void nomadcap_openlog(nomadcap_pack_t *np) {
-  openlog(np->pname, LOG_PID | LOG_CONS, LOG_USER);
+void nomadcap_openlog(const char *pname) {
+  openlog(pname, LOG_PID | LOG_CONS, LOG_USER);
 }
 
-void nomadcap_syslog(nomadcap_pack_t *np, int priority, const char *fmt, ...) {
+void nomadcap_syslog(int priority, const char *fmt, ...) {
   va_list ap;
   char buf[1024];
 
@@ -15,6 +17,6 @@ void nomadcap_syslog(nomadcap_pack_t *np, int priority, const char *fmt, ...) {
   syslog(priority, "%s", buf);
 }
 
-void nomadcap_closelog(nomadcap_pack_t *np) {
+void nomadcap_closelog(void) {
   closelog();
 }

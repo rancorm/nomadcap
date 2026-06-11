@@ -39,7 +39,7 @@ extern char *optarg;
 extern int optopt;
 
 #include "nomadcap6.h"
-#include "syslog6.h"
+#include "syslog.h"
 
 /* Global termination control, set from signal handlers */
 volatile sig_atomic_t loop = 1;
@@ -148,7 +148,7 @@ void nomadcap6_exit(nomadcap6_pack_t *np, int code) {
 
     /* Close syslog */
     if (NOMADCAP6_FLAG(np, SYSLOG))
-      nomadcap6_closelog(np);
+      nomadcap_closelog();
 
     free(np);
   }
@@ -1217,7 +1217,7 @@ void nomadcap6_netprint(nomadcap6_pack_t *np) {
 
 void nomadcap6_pcap_setup(nomadcap6_pack_t *np, char *errbuf) {
   if (NOMADCAP6_FLAG(np, SYSLOG))
-    nomadcap6_openlog(np);
+    nomadcap_openlog(np->pname);
 
   if (NOMADCAP6_FLAG_NOT(np, FILE)) {
     np->p = pcap_open_live(np->device, NOMADCAP6_SNAPLEN, NOMADCAP6_PROMISC,

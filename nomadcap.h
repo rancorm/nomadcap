@@ -261,18 +261,18 @@ typedef struct nomadcap_pack {
   } while(0)
 #endif /* USE_LIBJANSSON */
 
-#define NOMADCAP_SYSLOG(pack, format, ...)				       \
+#define NOMADCAP_SYSLOG(pack, priority, ...)				       \
   do {									       \
     if (NOMADCAP_FLAG(pack, SYSLOG)) {					       \
-      nomadcap_syslog(pack, format __VA_OPT__(, ) __VA_ARGS__);		       \
+      nomadcap_syslog(priority, __VA_ARGS__);				       \
     }									       \
   } while(0)
 
-#define NOMADCAP_SYSLOG_V(pack, format, ...)				       \
+#define NOMADCAP_SYSLOG_V(pack, priority, ...)				       \
   do {									       \
     if (NOMADCAP_FLAG(pack, SYSLOG) &&					       \
       NOMADCAP_FLAG(pack, VERBOSE)) {					       \
-      nomadcap_syslog(pack, format __VA_OPT__(, ) __VA_ARGS__);		       \
+      nomadcap_syslog(priority, __VA_ARGS__);				       \
     }									       \
   } while(0)
 

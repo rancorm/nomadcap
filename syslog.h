@@ -4,10 +4,8 @@
 #include <stdarg.h>
 #include <syslog.h>
 
-#include "nomadcap.h"
-
-void nomadcap_openlog(nomadcap_pack_t *);
-void nomadcap_syslog(nomadcap_pack_t *, int, const char *, ...);
-void nomadcap_closelog(nomadcap_pack_t *);
+void nomadcap_openlog(const char *);
+void nomadcap_syslog(int, const char *, ...);
+void nomadcap_closelog(void);
 
 #endif /* __SYSLOG_H */
