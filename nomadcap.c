@@ -11,78 +11,7 @@ extern int optopt;
 #include "nomadcap.h"
 #include "syslog.h"
 
-/* Global termination control, set from signal handlers */
-volatile sig_atomic_t loop = 1;
-
-size_t nomadcap_uint2str(char *buf, size_t buf_size,
-			 const uint16_t *array, size_t count,
-			 const char *prefix, const char *suffix) {
-  size_t used = 0;
-  int w;
-
-  /* prefix */
-  w = snprintf(buf + used, buf_size - used, "%s", prefix);
- 
-  if (w < 0 || (size_t)w >= buf_size - used)
-    return -1;
-
-  used += w;
-
-  /* array elements */
-  for (size_t i = 0; i < count; ++i) {
-    w = snprintf(buf + used, buf_size - used, "%u", array[i]);
-        
-    if (w < 0 || (size_t)w >= buf_size - used)
-      return -1;
-    
-    used += w;
-
-    if (i + 1 < count) {                 
-      /* comma+space between items */
-      w = snprintf(buf + used, buf_size - used, ", ");
-      
-      if (w < 0 || (size_t)w >= buf_size - used)
-	return -1;
-      
-      used += w;
-    }
-  }
-
-  /* suffix */
-  w = snprintf(buf + used, buf_size - used, "%s", suffix);
-  
-  if (w < 0 || (size_t)w >= buf_size - used)
-    return -1;
-  
-  used += w;
-
-  return used;
-}
-
-void nomadcap_exec(nomadcap_pack_t *np, char **argv) {
-  pid_t pid = fork();
-  
-  if (pid == 0) {
-    /* Child process */
-    execvp(argv[0], argv);
-    _exit(1);
-  } else if (pid > 0) {
-    NOMADCAP_STDOUT_V(np, "Executing '%s'...\n", argv[0]);
-    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Executing '%s'...\n", argv[0]);
-
-    /* Parent process */
-    int status;
-    waitpid(pid, &status, 0);
-  } else {
-    perror("fork");
-  }
-}
-
 void nomadcap_exit(nomadcap_pack_t *np, int code) {
-#ifdef USE_LIBCSV
-  int i;
-#endif /* USE_LIBCSV */
-
   if (np) {
     /* Free strings */
     if (np->device)
@@ -93,21 +22,8 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
       free(np->binary);
 
 #ifdef USE_LIBCSV
-    if (np->oui_data) {
-      /* Loop throuh fields and free the memory */
-      for (i = 0; i < np->oui_num; i++) {
-        if (np->oui_data[i].assignment)
-          free(np->oui_data[i].assignment);
-        if (np->oui_data[i].org_address)
-          free(np->oui_data[i].org_address);
-        if (np->oui_data[i].org_name)
-          free(np->oui_data[i].org_name);
-        if (np->oui_data[i].registry)
-          free(np->oui_data[i].registry);
-      }
-
-      free(np->oui_data);
-    }
+    /* Free IEEE OUI data */
+    nomadcap_oui_free(&np->oui);
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -187,20 +103,35 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
 #ifdef USE_LIBCSV
   /* Load OUIs from IEEE CSV file */
   if (NOMADCAP_FLAG(np, OUI)) {
+    char oui_err[256];
+    int rc;
+
     NOMADCAP_STDOUT_V(np, "Loading OUI data from %s...\n",
                       NOMADCAP_OUI_FILEPATH);
     NOMADCAP_SYSLOG_V(np, LOG_INFO, "Loading OUI data from %s...\n",
                       NOMADCAP_OUI_FILEPATH);
-    nomadcap_oui_load(np, NOMADCAP_OUI_FILEPATH);
 
-    NOMADCAP_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap_oui_size(np));
-    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Loaded %'d OUIs\n", nomadcap_oui_size(np));
+    rc = nomadcap_oui_load(&np->oui, NOMADCAP_OUI_FILEPATH, oui_err,
+                           sizeof(oui_err));
+
+    /* Parse or allocation error */
+    if (rc < 0) {
+      NOMADCAP_SYSLOG(np, LOG_ERR, "%s\n", oui_err);
+      NOMADCAP_FAILURE(np, "%s\n", oui_err);
+    }
+
+    /* OUI file not available, continue without lookups */
+    if (rc == 0)
+      NOMADCAP_WARNING(np, "%s\n", oui_err);
+
+    NOMADCAP_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap_oui_size(&np->oui));
+    NOMADCAP_SYSLOG_V(np, LOG_INFO, "Loaded %'d OUIs\n", nomadcap_oui_size(&np->oui));
 
 #ifdef USE_LIBJANSSON
     /* Add number of loaded OUIs to JSON object */
     if (NOMADCAP_FLAG(np, JSON)) {
       NOMADCAP_JSON_PACK_V(np, "oui_file", json_string(NOMADCAP_OUI_FILEPATH));
-      NOMADCAP_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(np)));
+      NOMADCAP_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(&np->oui)));
     }
 #endif /* USE_LIBJANSSON */
   }
@@ -213,192 +144,6 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
   /* Setup signal handlers */
   nomadcap_signals(np);
 }
-
-#ifdef USE_LIBCSV
-nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *np,
-                                    struct ether_arp *arp) {
-  char oui[7], *assignment;
-  int index, cindex;
-
-  /* Convert to char[] for string compare */
-  snprintf(oui, sizeof(oui), "%02X%02X%02X", arp->arp_sha[0], arp->arp_sha[1],
-           arp->arp_sha[2]);
-
-  /* Check OUI cache for a match */
-  for (cindex = 0; cindex < NOMADCAP_OUI_CSIZE && np->oui_cache[cindex]; cindex++) {
-    assignment = np->oui_cache[cindex]->assignment;
-
-    if (strncmp(oui, assignment, 6) == 0) {
-	/* Increment cache OUI entry count */
-	np->oui_cache[cindex]->count++;
-
-	return np->oui_cache[cindex];
-    }
-  }
-
-  /* Loop through OUI entries looking for a match */
-  for (index = 0; index < (int)np->oui_num; index++) {
-    assignment = np->oui_data[index].assignment;
-
-    /* Malformed row with missing assignment field */
-    if (assignment == NULL)
-      continue;
-
-    /* Increment entry count and return the entry */
-    if (strncmp(oui, assignment, 6) == 0) {
-      np->oui_data[index].count++;
-
-      /* Find first empty cache slot */
-      cindex = 0;
-      while(cindex < NOMADCAP_OUI_CSIZE &&
-        np->oui_cache[cindex]) cindex++;
-
-      /* Better method to check count of OUI lookkups? */
-
-      /* Cache is full, replace random cache entry */
-      if (cindex == NOMADCAP_OUI_CSIZE)
-        cindex = rand() % NOMADCAP_OUI_CSIZE;
-
-      /* Insert found OUI entry to cache */
-      np->oui_cache[cindex] = &np->oui_data[index];
-
-      return &np->oui_data[index];
-    }
-  }
-
-  return NULL;
-}
-
-void nomadcap_oui_cb1(void *field, size_t num, void *data) {
-  nomadcap_pack_t *np;
-  uint32_t index;
-
-  np = (nomadcap_pack_t *)data;
-
-  /* Entry being filled; rows are committed in _cb2 */
-  index = np->oui_num;
-
-  /* Add more memory */
-  if (np->oui_num == np->oui_max) {
-    nomadcap_oui_t *oui_data;
-
-    np->oui_max += NOMADCAP_OUI_ENTRIES;
-    oui_data = (nomadcap_oui_t *)realloc(
-        np->oui_data, np->oui_max * sizeof(nomadcap_oui_t));
-
-    if (oui_data == NULL) {
-      perror("Memory allocation error");
-      nomadcap_exit(np, EXIT_FAILURE);
-    }
-
-    np->oui_data = oui_data;
-  }
-
-  /* Start each row from a clean entry; realloc memory is uninitialized */
-  if (np->oui_index == 0)
-    memset(&np->oui_data[index], 0, sizeof(nomadcap_oui_t));
-
-  /* Assign field data */
-  switch (np->oui_index) {
-  case 0:
-    np->oui_data[index].registry = strdup(field);
-    break;
-  case 1:
-    np->oui_data[index].assignment = strdup(field);
-    break;
-  case 2:
-    np->oui_data[index].org_name = strdup(field);
-    break;
-  case 3:
-    np->oui_data[index].org_address = strdup(field);
-    break;
-  default:
-    break;
-  }
-
-  /* Increase OUI index for next run */
-  np->oui_index++;
-}
-
-void nomadcap_oui_cb2(int num, void *data) {
-  nomadcap_pack_t *np;
-  nomadcap_oui_t *entry;
-
-  np = (nomadcap_pack_t *)data;
-
-  /* Reset field index */
-  np->oui_index = 0;
-
-  /* Row ended without any fields parsed */
-  if (np->oui_num >= np->oui_max)
-    return;
-
-  entry = &np->oui_data[np->oui_num];
-
-  /* Skip the CSV header row */
-  if (entry->registry && strcmp(entry->registry, "Registry") == 0) {
-    free(entry->registry);
-    free(entry->assignment);
-    free(entry->org_name);
-    free(entry->org_address);
-    memset(entry, 0, sizeof(*entry));
-
-    return;
-  }
-
-  /* End of OUI entry row, increase number of OUIs */
-  np->oui_num++;
-}
-
-uint32_t nomadcap_oui_size(nomadcap_pack_t *np) { return np->oui_num; }
-
-int nomadcap_oui_load(nomadcap_pack_t *np, char *path) {
-  struct csv_parser cp;
-  size_t nbytes;
-  char buf[4096];
-  FILE *fp;
-
-  /* Open the IEEE OUI CSV file */
-  fp = fopen(path, "r");
-
-  if (fp == NULL) {
-    perror("Error opening OUI data file");
-
-    return 0;
-  }
-
-  /* Allocate memory for OUI data */
-  np->oui_data = (nomadcap_oui_t *)calloc(np->oui_max, sizeof(nomadcap_oui_t));
-
-  if (np->oui_data == NULL) {
-    perror("Memory allocation error");
-
-    return 0;
-  }
-
-  /* Initialize parser */
-  csv_init(&cp, CSV_STRICT | CSV_APPEND_NULL);
-
-  /* Read and parse OUI entries */
-  /* Function _cb1 handles fields, cb2 handles row end */
-  while ((nbytes = fread(buf, 1, sizeof(buf), fp)) > 0)
-    if (csv_parse(&cp, buf, nbytes, nomadcap_oui_cb1, nomadcap_oui_cb2, np) !=
-        nbytes) {
-      NOMADCAP_SYSLOG(np, LOG_ERR, "Error parsing OUI data file: %s\n",
-          csv_strerror(csv_error(&cp)));
-      NOMADCAP_FAILURE(np, "Error parsing OUI data file: %s\n",
-          csv_strerror(csv_error(&cp)));
-  }
-
-  /* Clean up parser resources, close file */
-  csv_fini(&cp, nomadcap_oui_cb1, nomadcap_oui_cb2, 0);
-
-  fclose(fp);
-  csv_free(&cp);
-
-  return 1;
-}
-#endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
 void nomadcap_json_print(nomadcap_pack_t *np) {
@@ -430,57 +175,6 @@ int nomadcap_islocalnet(nomadcap_pack_t *np, struct ether_arp *arp) {
 
   /* Check if ARP was meant for the local network */
   return (netaddr == localnet_hbo);
-}
-
-void nomadcap_cleanup(int signo) {
-  ssize_t w;
-
-  loop = 0;
-
-  /* write() is async-signal-safe, fprintf() is not */
-  w = write(STDERR_FILENO, "Interrupt signal\n", 17);
-  (void)w;
-  (void)signo;
-}
-
-void nomadcap_alarm(int signo) {
-  loop = 0;
-}
-
-int nomadcap_signal(int signo, void (*handler)(int)) {
-  struct sigaction sa;
-
-  sa.sa_handler = handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-
-  if (sigaction(signo, &sa, NULL) == -1) {
-    return -1;
-  } else {
-    return 1;
-  }
-}
-
-void nomadcap_iso8601(nomadcap_pack_t *np, char *ts, size_t ts_size) {
-    time_t rawtime;
-    struct tm *timeinfo;
-    struct timeval tv;
-    
-    /* Get the current time */
-    time(&rawtime);
-
-    /* Call timestamp function (default localtime) */
-    timeinfo = np->ts_func(&rawtime);
-
-    /* Format the time as a string in ISO 8601 format (24-hour clock) */
-    strftime(ts, ts_size, "%Y-%m-%dT%H:%M:%S.", timeinfo);
-
-    /* Append milliseconds */
-    gettimeofday(&tv, NULL);
-    snprintf(ts + 20, ts_size - 20, "%03d", (int)(tv.tv_usec / 1000));
-  
-     /* Append timezone offset */
-    strftime(ts + 23, ts_size - 23, "%z", timeinfo);
 }
 
 void nomadcap_anprint(nomadcap_pack_t *np, char *buf, int buf_size, uint8_t *addr, int size, char sep, int hex) {
@@ -593,7 +287,7 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   nomadcap_anprint(np, tgt_ip, sizeof(tgt_ip), arp->arp_tpa, 4, '.', 0);
 
   /* Timestamp */
-  nomadcap_iso8601(np, ts, sizeof(ts));
+  nomadcap_iso8601(np->ts_func, ts, sizeof(ts));
   
   if (NOMADCAP_FLAG(np, TS))
     w = snprintf(output, sizeof(output), "%s - ", ts);
@@ -604,7 +298,7 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 #ifdef USE_LIBCSV
   /* Output OUI org. details */
   if (NOMADCAP_FLAG(np, OUI)) {
-    oui_entry = nomadcap_oui_lookup(np, arp);
+    oui_entry = nomadcap_oui_lookup(&np->oui, arp->arp_sha);
 
     if (oui_entry)
       w += snprintf(output + w,
@@ -657,9 +351,6 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
 }
 
 nomadcap_pack_t *nomadcap_init(char *pname) {
-#ifdef USE_LIBCSV
-  int i;
-#endif /* USE_LIBCSV */
   nomadcap_pack_t *np;
 
   np = (nomadcap_pack_t *)malloc(sizeof(nomadcap_pack_t));
@@ -676,16 +367,8 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
     np->duration = NOMADCAP_DURATION;
 
 #ifdef USE_LIBCSV
-    /* Initialize OUI data and state variables */
-    np->oui_data = NULL;
-
-    /* Start with a clear cache */
-    for (i = 0; i < NOMADCAP_OUI_CSIZE; i++)
-      np->oui_cache[i] = NULL;
-    
-    np->oui_num = 0;
-    np->oui_index = 0;
-    np->oui_max = NOMADCAP_OUI_ENTRIES;
+    /* Initialize OUI data, state, and cache */
+    memset(&np->oui, 0, sizeof(np->oui));
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -711,26 +394,6 @@ nomadcap_pack_t *nomadcap_init(char *pname) {
   return NULL;
 }
 
-int nomadcap_isvlan(nomadcap_pack_t *np, struct ether_header *eh) {
-  /* 1. 0x8100 marks an 802.1Q tag */
-  if (ntohs(eh->ether_type) != 0x8100)
-    return 0;
-
-  /* 2. VLAN tag sits right after ether_type */
-  const uint16_t *tci = (const uint16_t *)(eh + 1);
-
-  /* 3. lower 12 bits are the VID */
-  uint16_t vid = ntohs(*tci) & 0x0FFF;
-
-  for (size_t i = 0; i < np->vlan_cnt; i++) {
-    if (vid == np->vlans[i]) {
-      return 1;
-    }
-  }
-
-  return 0; 
-}
-
 int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
                          struct ether_arp *arp) {
   /* Check for broadcasts */
@@ -743,7 +406,7 @@ int nomadcap_interesting(nomadcap_pack_t *np, struct ether_header *eth,
     return 0;
 
   /* Check for specific VLAN traffic */
-  if (np->vlan_cnt && !nomadcap_isvlan(np, eth)) {
+  if (np->vlan_cnt && !nomadcap_vlan_match(eth, np->vlans, np->vlan_cnt)) {
     /* Not interested in this VLAN traffic */
     return 0;
   }
@@ -850,7 +513,7 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
 
   /* Entire ARP message must be captured */
   if (h->caplen < offset + sizeof(struct ether_arp)) {
-    if (!loop) pcap_breakloop(np->p);
+    if (!nomadcap_loop) pcap_breakloop(np->p);
 
     return;
   }
@@ -894,7 +557,10 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
 	  NULL
 	};
 
-	nomadcap_exec(np, args);
+	NOMADCAP_STDOUT_V(np, "Executing '%s'...\n", args[0]);
+	NOMADCAP_SYSLOG_V(np, LOG_INFO, "Executing '%s'...\n", args[0]);
+
+	nomadcap_exec(args);
       }
 
       /* Terminate loop if only looking for one match */
@@ -907,7 +573,7 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
   }
 
   /* Bail */
-  if (!loop) pcap_breakloop(np->p);
+  if (!nomadcap_loop) pcap_breakloop(np->p);
 }
 
 int main(int argc, char *argv[]) {
@@ -1080,7 +746,7 @@ int main(int argc, char *argv[]) {
   /* Start timestamp */
   memset(ts, 0, sizeof(ts));
 
-  nomadcap_iso8601(np, ts, sizeof(ts));
+  nomadcap_iso8601(np->ts_func, ts, sizeof(ts));
   NOMADCAP_STDOUT(np, "Started at: %s\n", ts);
   NOMADCAP_SYSLOG(np, LOG_INFO, "Started at: %s\n", ts);
 

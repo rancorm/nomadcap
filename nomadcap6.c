@@ -41,76 +41,7 @@ extern int optopt;
 #include "nomadcap6.h"
 #include "syslog.h"
 
-/* Global termination control, set from signal handlers */
-volatile sig_atomic_t loop = 1;
-
-size_t nomadcap6_uint2str(char *buf, size_t buf_size,
-			 const uint16_t *array, size_t count,
-			 const char *prefix, const char *suffix) {
-  size_t used = 0;
-  int w;
-
-  /* prefix */
-  w = snprintf(buf + used, buf_size - used, "%s", prefix);
-
-  if (w < 0 || (size_t)w >= buf_size - used)
-    return -1;
-
-  used += w;
-
-  /* array elements */
-  for (size_t i = 0; i < count; ++i) {
-    w = snprintf(buf + used, buf_size - used, "%u", array[i]);
-
-    if (w < 0 || (size_t)w >= buf_size - used)
-      return -1;
-
-    used += w;
-
-    if (i + 1 < count) {
-      /* comma+space between items */
-      w = snprintf(buf + used, buf_size - used, ", ");
-
-      if (w < 0 || (size_t)w >= buf_size - used)
-	return -1;
-
-      used += w;
-    }
-  }
-
-  /* suffix */
-  w = snprintf(buf + used, buf_size - used, "%s", suffix);
-
-  if (w < 0 || (size_t)w >= buf_size - used)
-    return -1;
-
-  used += w;
-
-  return used;
-}
-
-void nomadcap6_exec(nomadcap6_pack_t *np, char **argv) {
-  pid_t pid = fork();
-
-  if (pid == 0) {
-    execvp(argv[0], argv);
-    _exit(1);
-  } else if (pid > 0) {
-    NOMADCAP6_STDOUT_V(np, "Executing '%s'...\n", argv[0]);
-    NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Executing '%s'...\n", argv[0]);
-
-    int status;
-    waitpid(pid, &status, 0);
-  } else {
-    perror("fork");
-  }
-}
-
 void nomadcap6_exit(nomadcap6_pack_t *np, int code) {
-#ifdef USE_LIBCSV
-  int i;
-#endif /* USE_LIBCSV */
-
   if (np) {
     if (np->device)
       free(np->device);
@@ -122,20 +53,8 @@ void nomadcap6_exit(nomadcap6_pack_t *np, int code) {
       free(np->prefixes);
 
 #ifdef USE_LIBCSV
-    if (np->oui_data) {
-      for (i = 0; i < np->oui_num; i++) {
-        if (np->oui_data[i].assignment)
-          free(np->oui_data[i].assignment);
-        if (np->oui_data[i].org_address)
-          free(np->oui_data[i].org_address);
-        if (np->oui_data[i].org_name)
-          free(np->oui_data[i].org_name);
-        if (np->oui_data[i].registry)
-          free(np->oui_data[i].registry);
-      }
-
-      free(np->oui_data);
-    }
+    /* Free IEEE OUI data */
+    nomadcap_oui_free(&np->oui);
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -302,20 +221,34 @@ void nomadcap6_setup(nomadcap6_pack_t *np, char *errbuf) {
 
 #ifdef USE_LIBCSV
   if (NOMADCAP6_FLAG(np, OUI)) {
+    char oui_err[256];
+    int rc;
+
     NOMADCAP6_STDOUT_V(np, "Loading OUI data from %s...\n",
-                      NOMADCAP6_OUI_FILEPATH);
+                      NOMADCAP_OUI_FILEPATH);
     NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Loading OUI data from %s...\n",
-                      NOMADCAP6_OUI_FILEPATH);
+                      NOMADCAP_OUI_FILEPATH);
 
-    nomadcap6_oui_load(np, NOMADCAP6_OUI_FILEPATH);
+    rc = nomadcap_oui_load(&np->oui, NOMADCAP_OUI_FILEPATH, oui_err,
+                           sizeof(oui_err));
 
-    NOMADCAP6_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap6_oui_size(np));
-    NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Loaded %'d OUIs\n", nomadcap6_oui_size(np));
+    /* Parse or allocation error */
+    if (rc < 0) {
+      NOMADCAP6_SYSLOG(np, LOG_ERR, "%s\n", oui_err);
+      NOMADCAP6_FAILURE(np, "%s\n", oui_err);
+    }
+
+    /* OUI file not available, continue without lookups */
+    if (rc == 0)
+      NOMADCAP6_WARNING(np, "%s\n", oui_err);
+
+    NOMADCAP6_STDOUT_V(np, "Loaded %'d OUIs\n", nomadcap_oui_size(&np->oui));
+    NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Loaded %'d OUIs\n", nomadcap_oui_size(&np->oui));
 
 #ifdef USE_LIBJANSSON
     if (NOMADCAP6_FLAG(np, JSON)) {
-      NOMADCAP6_JSON_PACK_V(np, "oui_file", json_string(NOMADCAP6_OUI_FILEPATH));
-      NOMADCAP6_JSON_PACK_V(np, "ouis", json_integer(nomadcap6_oui_size(np)));
+      NOMADCAP6_JSON_PACK_V(np, "oui_file", json_string(NOMADCAP_OUI_FILEPATH));
+      NOMADCAP6_JSON_PACK_V(np, "ouis", json_integer(nomadcap_oui_size(&np->oui)));
     }
 #endif /* USE_LIBJANSSON */
   }
@@ -324,173 +257,6 @@ void nomadcap6_setup(nomadcap6_pack_t *np, char *errbuf) {
   nomadcap6_pcap_setup(np, errbuf);
   nomadcap6_signals(np);
 }
-
-#ifdef USE_LIBCSV
-nomadcap6_oui_t *nomadcap6_oui_lookup(nomadcap6_pack_t *np,
-                                    uint8_t *mac) {
-  char oui[7], *assignment;
-  int index, cindex;
-
-  /* Convert to char[] for string compare */
-  snprintf(oui, sizeof(oui), "%02X%02X%02X", mac[0], mac[1], mac[2]);
-
-  /* Check OUI cache for a match */
-  for (cindex = 0; cindex < NOMADCAP6_OUI_CSIZE && np->oui_cache[cindex]; cindex++) {
-    assignment = np->oui_cache[cindex]->assignment;
-
-    if (strncmp(oui, assignment, 6) == 0) {
-	/* Increment cache OUI entry count */
-	np->oui_cache[cindex]->count++;
-
-	return np->oui_cache[cindex];
-    }
-  }
-
-  for (index = 0; index < (int)np->oui_num; index++) {
-    assignment = np->oui_data[index].assignment;
-
-    /* Malformed row with missing assignment field */
-    if (assignment == NULL)
-      continue;
-
-    if (strncmp(oui, assignment, 6) == 0) {
-      np->oui_data[index].count++;
-
-      cindex = 0;
-      while(cindex < NOMADCAP6_OUI_CSIZE &&
-        np->oui_cache[cindex]) cindex++;
-
-      if (cindex == NOMADCAP6_OUI_CSIZE)
-        cindex = rand() % NOMADCAP6_OUI_CSIZE;
-
-      np->oui_cache[cindex] = &np->oui_data[index];
-
-      return &np->oui_data[index];
-    }
-  }
-
-  return NULL;
-}
-
-void nomadcap6_oui_cb1(void *field, size_t num, void *data) {
-  nomadcap6_pack_t *np;
-  uint32_t index;
-
-  np = (nomadcap6_pack_t *)data;
-
-  /* Entry being filled; rows are committed in _cb2 */
-  index = np->oui_num;
-
-  if (np->oui_num == np->oui_max) {
-    nomadcap6_oui_t *oui_data;
-
-    np->oui_max += NOMADCAP6_OUI_ENTRIES;
-    oui_data = (nomadcap6_oui_t *)realloc(
-        np->oui_data, np->oui_max * sizeof(nomadcap6_oui_t));
-
-    if (oui_data == NULL) {
-      perror("Memory allocation error");
-      nomadcap6_exit(np, EXIT_FAILURE);
-    }
-
-    np->oui_data = oui_data;
-  }
-
-  /* Start each row from a clean entry; realloc memory is uninitialized */
-  if (np->oui_index == 0)
-    memset(&np->oui_data[index], 0, sizeof(nomadcap6_oui_t));
-
-  switch (np->oui_index) {
-  case 0:
-    np->oui_data[index].registry = strdup(field);
-    break;
-  case 1:
-    np->oui_data[index].assignment = strdup(field);
-    break;
-  case 2:
-    np->oui_data[index].org_name = strdup(field);
-    break;
-  case 3:
-    np->oui_data[index].org_address = strdup(field);
-    break;
-  default:
-    break;
-  }
-
-  np->oui_index++;
-}
-
-void nomadcap6_oui_cb2(int num, void *data) {
-  nomadcap6_pack_t *np;
-  nomadcap6_oui_t *entry;
-
-  np = (nomadcap6_pack_t *)data;
-
-  np->oui_index = 0;
-
-  /* Row ended without any fields parsed */
-  if (np->oui_num >= np->oui_max)
-    return;
-
-  entry = &np->oui_data[np->oui_num];
-
-  /* Skip the CSV header row */
-  if (entry->registry && strcmp(entry->registry, "Registry") == 0) {
-    free(entry->registry);
-    free(entry->assignment);
-    free(entry->org_name);
-    free(entry->org_address);
-    memset(entry, 0, sizeof(*entry));
-
-    return;
-  }
-
-  np->oui_num++;
-}
-
-uint32_t nomadcap6_oui_size(nomadcap6_pack_t *np) { return np->oui_num; }
-
-int nomadcap6_oui_load(nomadcap6_pack_t *np, char *path) {
-  struct csv_parser cp;
-  size_t nbytes;
-  char buf[4096];
-  FILE *fp;
-
-  fp = fopen(path, "r");
-
-  if (fp == NULL) {
-    perror("Error opening OUI data file");
-
-    return 0;
-  }
-
-  np->oui_data = (nomadcap6_oui_t *)calloc(np->oui_max, sizeof(nomadcap6_oui_t));
-
-  if (np->oui_data == NULL) {
-    perror("Memory allocation error");
-
-    return 0;
-  }
-
-  csv_init(&cp, CSV_STRICT | CSV_APPEND_NULL);
-
-  /* Function _cb1 handles fields, cb2 handles row end */
-  while ((nbytes = fread(buf, 1, sizeof(buf), fp)) > 0)
-    if (csv_parse(&cp, buf, nbytes, nomadcap6_oui_cb1, nomadcap6_oui_cb2, np) !=
-        nbytes) {
-        NOMADCAP6_SYSLOG(np, LOG_ERR, "Error parsing OUI data file: %s\n",
-          csv_strerror(csv_error(&cp)));
-        NOMADCAP6_FAILURE(np, "Error parsing OUI data file: %s\n",
-          csv_strerror(csv_error(&cp)));
-    }
-
-  csv_fini(&cp, nomadcap6_oui_cb1, nomadcap6_oui_cb2, 0);
-  csv_free(&cp);
-  fclose(fp);
-
-  return 1;
-}
-#endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
 void nomadcap6_json_print(nomadcap6_pack_t *np) {
@@ -503,55 +269,6 @@ void nomadcap6_json_print(nomadcap6_pack_t *np) {
   }
 }
 #endif /* USE_LIBJANSSON */
-
-void nomadcap6_cleanup(int signo) {
-  ssize_t w;
-
-  loop = 0;
-
-  /* write() is async-signal-safe, fprintf() is not */
-  w = write(STDERR_FILENO, "Interrupt signal\n", 17);
-  (void)w;
-  (void)signo;
-}
-
-void nomadcap6_alarm(int signo) {
-  loop = 0;
-}
-
-int nomadcap6_signal(int signo, void (*handler)(int)) {
-  struct sigaction sa;
-
-  sa.sa_handler = handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-
-  if (sigaction(signo, &sa, NULL) == -1) {
-    return -1;
-  } else {
-    return 1;
-  }
-}
-
-void nomadcap6_iso8601(nomadcap6_pack_t *np, char *ts, size_t ts_size) {
-    time_t rawtime;
-    struct tm *timeinfo;
-    struct timeval tv;
-
-    time(&rawtime);
-
-    timeinfo = np->ts_func(&rawtime);
-
-    /* ISO 8601 uses the 24-hour clock */
-    strftime(ts, ts_size, "%Y-%m-%dT%H:%M:%S.", timeinfo);
-
-    /* Append milliseconds */
-    gettimeofday(&tv, NULL);
-    snprintf(ts + 20, ts_size - 20, "%03d", (int)(tv.tv_usec / 1000));
-
-     /* Append timezone offset */
-    strftime(ts + 23, ts_size - 23, "%z", timeinfo);
-}
 
 void nomadcap6_usage(nomadcap6_pack_t *np) {
   /* Banner */
@@ -613,7 +330,7 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
   struct nd_neighbor_solicit *ns;
 
 #ifdef USE_LIBCSV
-  nomadcap6_oui_t *oui_entry;
+  nomadcap_oui_t *oui_entry;
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -640,7 +357,7 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
   inet_ntop(AF_INET6, &ns->nd_ns_target, tgt_ip, sizeof(tgt_ip));
 
   /* Timestamp */
-  nomadcap6_iso8601(np, ts, sizeof(ts));
+  nomadcap_iso8601(np->ts_func, ts, sizeof(ts));
 
   if (NOMADCAP6_FLAG(np, TS))
     w = snprintf(output, sizeof(output), "%s - ", ts);
@@ -651,7 +368,7 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
 #ifdef USE_LIBCSV
   /* Output OUI org. details */
   if (NOMADCAP6_FLAG(np, OUI)) {
-    oui_entry = nomadcap6_oui_lookup(np, eth->ether_shost);
+    oui_entry = nomadcap_oui_lookup(&np->oui, eth->ether_shost);
 
     if (oui_entry)
       w += snprintf(output + w, sizeof(output) - w, " - %s", oui_entry->org_name);
@@ -693,9 +410,6 @@ void nomadcap6_output(nomadcap6_pack_t *np, struct ether_header *eth,
 }
 
 nomadcap6_pack_t *nomadcap6_init(char *pname) {
-#ifdef USE_LIBCSV
-  int i;
-#endif /* USE_LIBCSV */
   nomadcap6_pack_t *np;
 
   np = (nomadcap6_pack_t *)malloc(sizeof(nomadcap6_pack_t));
@@ -712,15 +426,8 @@ nomadcap6_pack_t *nomadcap6_init(char *pname) {
     np->duration = NOMADCAP6_DURATION;
 
 #ifdef USE_LIBCSV
-    np->oui_data = NULL;
-
-    /* Start with a clear cache */
-    for (i = 0; i < NOMADCAP6_OUI_CSIZE; i++)
-      np->oui_cache[i] = NULL;
-
-    np->oui_num = 0;
-    np->oui_index = 0;
-    np->oui_max = NOMADCAP6_OUI_ENTRIES;
+    /* Initialize OUI data, state, and cache */
+    memset(&np->oui, 0, sizeof(np->oui));
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -742,26 +449,6 @@ nomadcap6_pack_t *nomadcap6_init(char *pname) {
   return NULL;
 }
 
-int nomadcap6_isvlan(nomadcap6_pack_t *np, struct ether_header *eh) {
-  /* 1. 0x8100 marks an 802.1Q tag */
-  if (ntohs(eh->ether_type) != 0x8100)
-    return 0;
-
-  /* 2. VLAN tag sits right after ether_type */
-  const uint16_t *tci = (const uint16_t *)(eh + 1);
-
-  /* 3. lower 12 bits are the VID */
-  uint16_t vid = ntohs(*tci) & 0x0FFF;
-
-  for (size_t i = 0; i < np->vlan_cnt; i++) {
-    if (vid == np->vlans[i]) {
-      return 1;
-    }
-  }
-
-  return 0;
-}
-
 int nomadcap6_interesting(nomadcap6_pack_t *np, struct ether_header *eth,
                          struct icmp6_hdr *icmp,
 			 const struct pcap_pkthdr *ph) {
@@ -769,7 +456,7 @@ int nomadcap6_interesting(nomadcap6_pack_t *np, struct ether_header *eth,
   size_t nd_off = (const u_char *)icmp - (const u_char *)eth;
 
   /* Check for specific VLAN traffic */
-  if (np->vlan_cnt && !nomadcap6_isvlan(np, eth)) {
+  if (np->vlan_cnt && !nomadcap_vlan_match(eth, np->vlans, np->vlan_cnt)) {
     /* Not interested in this VLAN traffic */
     return 0;
   }
@@ -865,7 +552,7 @@ void nomadcap6_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_c
 
   /* IPv6 and ICMPv6 headers must be captured */
   if (h->caplen < offset + sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr)) {
-    if (!loop) pcap_breakloop(np->p);
+    if (!nomadcap_loop) pcap_breakloop(np->p);
 
     return;
   }
@@ -908,7 +595,10 @@ void nomadcap6_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_c
             eth->ether_shost[3], eth->ether_shost[4], eth->ether_shost[5]);
 
           char *args[] = {np->binary, src_ha, src_ip, tgt_ip, NULL};
-          nomadcap6_exec(np, args);
+          NOMADCAP6_STDOUT_V(np, "Executing '%s'...\n", args[0]);
+          NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Executing '%s'...\n", args[0]);
+
+          nomadcap_exec(args);
         }
 
         /* Terminate loop if only looking for one match */
@@ -922,7 +612,7 @@ void nomadcap6_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_c
   }
 
   /* Bail */
-  if (!loop) pcap_breakloop(np->p);
+  if (!nomadcap_loop) pcap_breakloop(np->p);
 }
 
 int main(int argc, char *argv[]) {
@@ -1077,7 +767,7 @@ int main(int argc, char *argv[]) {
 
     memset(vlan_str, 0, sizeof(vlan_str));
 
-    nomadcap6_uint2str(vlan_str,
+    nomadcap_uint2str(vlan_str,
 		     sizeof(vlan_str),
 		     np->vlans,
 		     np->vlan_cnt,
@@ -1098,7 +788,7 @@ int main(int argc, char *argv[]) {
 
   memset(ts, 0, sizeof(ts));
 
-  nomadcap6_iso8601(np, ts, sizeof(ts));
+  nomadcap_iso8601(np->ts_func, ts, sizeof(ts));
   NOMADCAP6_STDOUT(np, "Started at: %s\n", ts);
 
 #ifdef USE_LIBJANSSON
@@ -1251,7 +941,7 @@ void nomadcap6_pcap_setup(nomadcap6_pack_t *np, char *errbuf) {
 }
 
 void nomadcap6_signals(nomadcap6_pack_t *np) {
-  if (nomadcap6_signal(SIGINT, nomadcap6_cleanup) == -1)
+  if (nomadcap_signal(SIGINT, nomadcap_cleanup) == -1)
     NOMADCAP6_FAILURE(np, "Can't catch SIGINT signal\n");
 
   if (np->duration > 0) {
@@ -1262,7 +952,7 @@ void nomadcap6_signals(nomadcap6_pack_t *np) {
       NOMADCAP6_JSON_PACK_V(np, "duration", json_integer(np->duration));
 #endif /* USE_LIBJANSSON */
 
-    if (nomadcap6_signal(SIGALRM, nomadcap6_alarm) == -1)
+    if (nomadcap_signal(SIGALRM, nomadcap_alarm) == -1)
       NOMADCAP6_FAILURE(np, "Can't catch SIGALRM signal\n");
 
     alarm(np->duration);

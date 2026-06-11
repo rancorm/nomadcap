@@ -85,17 +85,6 @@ static const struct option nomadcap6_long_opts[] = {
 
 #ifdef USE_LIBCSV
 #define NOMADCAP6_FLAGS_OUI 0x400
-
-/* IEEE OUI path & files */
-#define NOMADCAP6_OUI_PATH NOMADCAP_OUI_PATH
-#define NOMADCAP6_OUI_FILE NOMADCAP_OUI_FILE
-#define NOMADCAP6_OUI_FILEPATH NOMADCAP6_OUI_PATH NOMADCAP6_OUI_FILE
-
-/* OUI cache entry size */
-#define NOMADCAP6_OUI_CSIZE 256
-
-/* Initial OUI dynamic memory allocation */
-#define NOMADCAP6_OUI_ENTRIES 4096
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -113,16 +102,6 @@ typedef struct nomadcap6_prefix {
   int prefixlen;
 } nomadcap6_prefix_t;
 
-/* OUI entry */
-typedef struct nomadcap6_oui {
-  char *registry;
-  char *assignment;
-  char *org_name;
-  char *org_address;
-
-  uint32_t count;
-} nomadcap6_oui_t;
-
 /* Application state package */
 typedef struct nomadcap6_pack {
   /* Capture device, filter, filename, and duration */
@@ -139,12 +118,7 @@ typedef struct nomadcap6_pack {
 
 #ifdef USE_LIBCSV
   /* IEEE OUI data */
-  nomadcap6_oui_t *oui_data;
-  nomadcap6_oui_t *oui_cache[NOMADCAP6_OUI_CSIZE];
-
-  uint32_t oui_num;
-  uint32_t oui_max;
-  uint32_t oui_index;
+  nomadcap_oui_table_t oui;
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -269,14 +243,7 @@ typedef struct nomadcap6_pack {
 #define NOMADCAP6_TSLEN NOMADCAP_TSLEN
 
 /* Function prototypes */
-#ifdef USE_LIBCSV
-int nomadcap6_oui_load(nomadcap6_pack_t *, char *);
-nomadcap6_oui_t *nomadcap6_oui_lookup(nomadcap6_pack_t *, uint8_t *);
-uint32_t nomadcap6_oui_size(nomadcap6_pack_t *);
-#endif /* USE_LIBCSV */
-
 void nomadcap6_add_prefix(nomadcap6_pack_t *, struct in6_addr *, int);
-int nomadcap6_isvlan(nomadcap6_pack_t *, struct ether_header *);
 void nomadcap6_finddev(nomadcap6_pack_t *, char *);
 void nomadcap6_signals(nomadcap6_pack_t *);
 void nomadcap6_pcap_setup(nomadcap6_pack_t *, char *);

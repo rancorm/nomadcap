@@ -30,6 +30,9 @@
 #include <jansson.h>
 #endif /* USE_LIBJANSSON */
 
+/* Code shared with nomadcap6 */
+#include "common.h"
+
 /* Author and banner */
 #define NOMADCAP_AUTHOR "Jonathan Cormier <jonathan@cormier.co>"
 #define NOMADCAP_BANNER "Misconfigure network stack identification tool"
@@ -41,9 +44,6 @@
 /* Ethernet ARP broadcast requests, plain and 802.1Q tagged */
 #define NOMADCAP_FILTER "arp or (vlan and arp)"
 #define NOMADCAP_SNAPLEN 64
-
-/* 802.1Q tag length */
-#define NOMADCAP_VLAN_HDRLEN 4
 #define NOMADCAP_TIMEOUT 500
 #define NOMADCAP_PROMISC 0 
 
@@ -117,17 +117,6 @@ static const struct option nomadcap_long_opts[] = {
 #define NOMADCAP_FLAGS_NETMASK 0x200
 #ifdef USE_LIBCSV
 #define NOMADCAP_FLAGS_OUI 0x400
-
-/* IEEE OUI path & files */
-#define NOMADCAP_OUI_PATH "/usr/share/ieee-data/"
-#define NOMADCAP_OUI_FILE "oui.csv"
-#define NOMADCAP_OUI_FILEPATH NOMADCAP_OUI_PATH NOMADCAP_OUI_FILE
-
-/* OUI cache entry size */
-#define NOMADCAP_OUI_CSIZE 256
-
-/* Initial OUI dynamic memory allocation */
-#define NOMADCAP_OUI_ENTRIES 4096
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -140,16 +129,6 @@ static const struct option nomadcap_long_opts[] = {
 #define NOMADCAP_VLANS_SIZE 32
 
 #define NOMADCAP_VERSION "0.4"
-
-/* OUI entry */
-typedef struct nomadcap_oui {
-  char *registry;
-  char *assignment;
-  char *org_name;
-  char *org_address;
-
-  uint32_t count;
-} nomadcap_oui_t;
 
 /* Application state package */
 typedef struct nomadcap_pack {
@@ -167,12 +146,7 @@ typedef struct nomadcap_pack {
 
 #ifdef USE_LIBCSV
   /* IEEE OUI data */
-  nomadcap_oui_t *oui_data;
-  nomadcap_oui_t *oui_cache[NOMADCAP_OUI_CSIZE];
-
-  uint32_t oui_num;
-  uint32_t oui_max;
-  uint32_t oui_index;
+  nomadcap_oui_table_t oui;
 #endif /* USE_LIBCSV */
 
 #ifdef USE_LIBJANSSON
@@ -313,12 +287,6 @@ typedef struct nomadcap_pack {
 #define NOMADCAP_LO "lo"
 
 /* Function prototypes */
-#ifdef USE_LIBCSV
-int nomadcap_oui_load(nomadcap_pack_t *, char *);
-nomadcap_oui_t *nomadcap_oui_lookup(nomadcap_pack_t *, struct ether_arp *);
-uint32_t nomadcap_oui_size(nomadcap_pack_t *);
-#endif /* USE_LIBCSV */
-
 void nomadcap_finddev(nomadcap_pack_t *, char *);
 void nomadcap_signals(nomadcap_pack_t *);
 void nomadcap_pcap_setup(nomadcap_pack_t *, char *);
