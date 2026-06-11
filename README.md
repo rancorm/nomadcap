@@ -47,7 +47,7 @@ Download the [latest release](https://github.com/jcormir/nomadcap/releases/lates
 install using `dpkg` or your favourite [APT](https://en.wikipedia.org/wiki/APT_(software)) front-end.
 
 ```zsh
-VER="0.4-1"
+VER="0.5-1"
 sudo dpkg -i nomadcap_${VER}_amd64.deb
 ```
 
@@ -96,28 +96,33 @@ nomadcap -h
 #### Menu
 
 ```text
-nomadcap v0.4 [Misconfigure network stack identification tool]
+nomadcap v0.5 [Misconfigure network stack identification tool]
 
-Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-Apa1stuLvV]
+Usage: nomadcap [-i INTF] [-n NETWORK -m NETMASK] [--vlan X,Y,Z] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjApa1stuLvV]
 
 Options:
-  -i, --interface=INTF   Capture on specific interface
-  -n, --network=NETWORK  Capture network (e.g. 192.0.2.0)
-  -m, --mask=NETMASK     Capture netmask (e.g. 255.255.255.0)
-  --vlan X,Y,Z           Specific VLANs to monitor
-  -f, --file=FILE.PCAP   Offline capture using FILE.PCAP
-  -d, --duration=SECONDS Duration of capture (default: 60, forever: 0)
-  -A, --all              All networks (ARP request monitor)
-  -p, --probes           Process ARP probes
-  -a, --announce         Process ARP announcements
-  -1, --once             Exit after single match
-  -x, --exec=PATH        Execute on detection
-  -s, --syslog           Send to syslog
-  -t, --timestamp        ISO 8601 timestamps
-  -u, --utc              Show timestamps in UTC
-  -L, --list             List available interfaces
-  -v, --verbose          Verbose mode
-  -V, --version          Version
+  -i, --interface=INTF      Capture on specific interface
+  -n, --network=NETWORK     Capture network (e.g. 192.0.2.0)
+  -m, --mask=NETMASK        Capture netmask (e.g. 255.255.255.0)
+  --vlan X,Y,Z              Specific VLANs to monitor
+  -f, --file=FILE.PCAP      Offline capture using FILE.PCAP
+  -d, --duration=SECONDS    Duration of capture (default: 60, forever: 0)
+  -O, --oui                 MAC OUI to organization
+  -A, --all                 All networks (ARP request monitor)
+  -p, --probes              Process ARP probes
+  -a, --announce            Process ARP announcements
+  -1, --once                Exit after single match
+  -x, --exec=PATH           Execute on detection
+  -s, --syslog              Send to syslog
+  -t, --timestamp           ISO 8601 timestamps
+  -u, --utc                 Show timestamps in UTC
+  -L, --list                List available interfaces
+  -j, --json                JSON output
+  -v, --verbose             Verbose mode
+  -V, --version             Version
+  -h, --help                Help screen
+
+Author: Jonathan Cormier <jonathan@cormier.co>
 ```
 
 ### Examples
@@ -264,7 +269,7 @@ with timestamps (-t). JSON mode prints a JSON object with capture details and re
     "pkts_recv": 4,
     "pkts_drop": 0
   },
-  "version": "0.4"
+  "version": "0.5"
 }%
 ```
 
@@ -317,7 +322,7 @@ nomadcap6 -h
 #### Menu
 
 ```text
-nomadcap6 v0.4 [Misconfigured IPv6 network stack identification tool]
+nomadcap6 v0.5 [Misconfigure v6 network stack identification tool]
 
 Usage: nomadcap6 [-i INTF] [-n PREFIX/LENGTH] [--vlan X,Y,Z] [-f FILE.PCAP] [-d SECONDS] [-x PATH] [-OjAa1stuLvV]
 
@@ -339,6 +344,9 @@ Options:
   -j, --json                JSON output
   -v, --verbose             Verbose mode
   -V, --version             Version
+  -h, --help                Help screen
+
+Author: Jonathan Cormier <jonathan@cormier.co>
 ```
 
 ### Example

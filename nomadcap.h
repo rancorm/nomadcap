@@ -128,7 +128,7 @@ static const struct option nomadcap_long_opts[] = {
 
 #define NOMADCAP_VLANS_SIZE 32
 
-#define NOMADCAP_VERSION "0.4"
+#define NOMADCAP_VERSION "0.5"
 
 /* Application state package */
 typedef struct nomadcap_pack {
@@ -261,7 +261,7 @@ typedef struct nomadcap_pack {
     nomadcap_exit(pack, EXIT_SUCCESS);                                         \
   } while (0)
 
-#define NOMADCAP_HELP_COLS 23
+#define NOMADCAP_HELP_COLS 26
 #define NOMADCAP_HELP_DESC 20
 #define STR(x)  #x
 #define XSTR(x) STR(x)

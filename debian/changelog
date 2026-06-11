@@ -1,3 +1,17 @@
+nomadcap (0.5-1) unstable; urgency=low
+
+  * Fix VLAN capture: match and parse 802.1Q tagged frames (--vlan).
+  * Fix IEEE OUI loader: row indexing, cache bounds, allocation checks.
+  * Add -a/--announce to nomadcap6 for unsolicited neighbor advertisements.
+  * Validate -n, -m, and -d command line arguments.
+  * Use 24-hour clock in ISO 8601 timestamps.
+  * Harden packet parsing against truncated captures.
+  * Improved interface auto-selection in both tools.
+  * Shared common and syslog modules between nomadcap and nomadcap6.
+  * Build with -Wall -Wextra -O2; warning and memory leak cleanup.
+
+ -- Jonathan Cormier <jonathan@cormier.co>  Thu, 11 Jun 2026 18:51:13 -0300
+
 nomadcap (0.4-1) unstable; urgency=low
 
   * IPv6 support in nomadcap6.
