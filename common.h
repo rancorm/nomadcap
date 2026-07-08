@@ -68,6 +68,7 @@ int nomadcap_signal(int, void (*)(int));
 
 ssize_t nomadcap_uint2str(char *, size_t, const uint16_t *, size_t,
                           const char *, const char *);
+size_t nomadcap_appendf(char *, size_t, size_t, const char *, ...);
 void nomadcap_iso8601(struct tm *(*)(const time_t *), char *, size_t);
 void nomadcap_exec(char **);
 int nomadcap_vlan_match(const struct ether_header *, const uint16_t *, size_t);

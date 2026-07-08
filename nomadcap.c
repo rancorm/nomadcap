@@ -298,10 +298,10 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
   nomadcap_iso8601(np->ts_func, ts, sizeof(ts));
   
   if (NOMADCAP_FLAG(np, TS))
-    w = snprintf(output, sizeof(output), "%s - ", ts);
+    w = nomadcap_appendf(output, sizeof(output), w, "%s - ", ts);
 
   /* Final output: [Timestamp] <Sender IP> [<Sender MAC> - Org] is looking for <Target IP> */
-  w += snprintf(output + w, sizeof(output) - w, "%s [%s", src_ip, src_ha);
+  w = nomadcap_appendf(output, sizeof(output), w, "%s [%s", src_ip, src_ha);
 
 #ifdef USE_LIBCSV
   /* Output OUI org. details */
@@ -309,14 +309,13 @@ void nomadcap_output(nomadcap_pack_t *np, struct ether_arp *arp) {
     oui_entry = nomadcap_oui_lookup(&np->oui, arp->arp_sha);
 
     if (oui_entry)
-      w += snprintf(output + w,
-		    sizeof(output) - w,
+      w = nomadcap_appendf(output, sizeof(output), w,
 		    " - %s",
 		    oui_entry->org_name);
   }
 #endif /* USE_LIBCSV */
 
-  snprintf(output + w, sizeof(output) - w, "] is looking for %s\n", tgt_ip);
+  nomadcap_appendf(output, sizeof(output), w, "] is looking for %s\n", tgt_ip);
   
   /* Output target IP */
   NOMADCAP_STDOUT(np, "%s", output);

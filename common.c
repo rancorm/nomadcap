@@ -4,6 +4,7 @@
  *
  */
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,6 +107,30 @@ ssize_t nomadcap_uint2str(char *buf, size_t buf_size,
   used += w;
 
   return used;
+}
+
+size_t nomadcap_appendf(char *buf, size_t buf_size, size_t off,
+                        const char *fmt, ...) {
+  va_list ap;
+  int w;
+
+  if (off >= buf_size)
+    return off;
+
+  va_start(ap, fmt);
+  w = vsnprintf(buf + off, buf_size - off, fmt, ap);
+  va_end(ap);
+
+  if (w < 0)
+    return off;
+
+  off += (size_t)w;
+
+  /* Truncated; park the offset on the NUL so later appends are no-ops */
+  if (off >= buf_size)
+    off = buf_size - 1;
+
+  return off;
 }
 
 void nomadcap_iso8601(struct tm *(*ts_func)(const time_t *), char *ts,
