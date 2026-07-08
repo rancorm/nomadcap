@@ -189,6 +189,10 @@ void nomadcap6_setup(nomadcap6_pack_t *np, char *errbuf) {
   /* Set the locale to the user default */
   setlocale(LC_NUMERIC, "");
 
+  /* Open syslog before the first messages are logged */
+  if (NOMADCAP6_FLAG(np, SYSLOG))
+    nomadcap_openlog(np->pname);
+
   if (NOMADCAP6_FLAG(np, FILE))
     np->duration = 0;
 
@@ -951,9 +955,6 @@ void nomadcap6_netprint(nomadcap6_pack_t *np) {
 }
 
 void nomadcap6_pcap_setup(nomadcap6_pack_t *np, char *errbuf) {
-  if (NOMADCAP6_FLAG(np, SYSLOG))
-    nomadcap_openlog(np->pname);
-
   if (NOMADCAP6_FLAG_NOT(np, FILE)) {
     np->p = pcap_open_live(np->device, NOMADCAP6_SNAPLEN, NOMADCAP6_PROMISC,
                            NOMADCAP6_TIMEOUT, errbuf);

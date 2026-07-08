@@ -55,6 +55,10 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
   /* Set the locale to the user default */
   setlocale(LC_NUMERIC, "");
 
+  /* Open syslog before the first messages are logged */
+  if (NOMADCAP_FLAG(np, SYSLOG))
+    nomadcap_openlog(np->pname);
+
   /* Turn off duration capture for offline capture */
   if (NOMADCAP_FLAG(np, FILE))
     np->duration = 0;
@@ -898,9 +902,6 @@ void nomadcap_netprint(nomadcap_pack_t *np) {
 }
 
 void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
-  if (NOMADCAP_FLAG(np, SYSLOG))
-    nomadcap_openlog(np->pname);
-  
   /* No file name from user, live capture */
   if (NOMADCAP_FLAG_NOT(np, FILE)) {
     np->p = pcap_open_live(np->device, NOMADCAP_SNAPLEN, NOMADCAP_PROMISC,
