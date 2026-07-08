@@ -956,8 +956,8 @@ void nomadcap_pcap_setup(nomadcap_pack_t *np, char *errbuf) {
 
   /* Set program as filter */
   if (pcap_setfilter(np->p, &np->code) == -1) {
-    NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_setfilter: %s\n", errbuf);
-    NOMADCAP_FAILURE(np, "pcap_setfilter: %s\n", errbuf);
+    NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_setfilter: %s\n", pcap_geterr(np->p));
+    NOMADCAP_FAILURE(np, "pcap_setfilter: %s\n", pcap_geterr(np->p));
   }
 
   /* Check datalink */

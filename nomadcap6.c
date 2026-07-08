@@ -965,7 +965,7 @@ void nomadcap6_pcap_setup(nomadcap6_pack_t *np, char *errbuf) {
     NOMADCAP6_FAILURE(np, "pcap_compile: %s\n", pcap_geterr(np->p));
 
   if (pcap_setfilter(np->p, &np->code) == -1)
-    NOMADCAP6_FAILURE(np, "pcap_setfilter: %s\n", errbuf);
+    NOMADCAP6_FAILURE(np, "pcap_setfilter: %s\n", pcap_geterr(np->p));
 
   if (pcap_datalink(np->p) != DLT_EN10MB)
     NOMADCAP6_FAILURE(np, "pcap_datalink: Ethernet only, sorry.");
