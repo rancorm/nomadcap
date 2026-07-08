@@ -229,21 +229,30 @@ static void nomadcap_oui_cb1(void *field, size_t num, void *data) {
     memset(&t->data[index], 0, sizeof(nomadcap_oui_t));
 
   /* Assign field data */
+  char **slot = NULL;
+
   switch (t->index) {
   case 0:
-    t->data[index].registry = strdup(field);
+    slot = &t->data[index].registry;
     break;
   case 1:
-    t->data[index].assignment = strdup(field);
+    slot = &t->data[index].assignment;
     break;
   case 2:
-    t->data[index].org_name = strdup(field);
+    slot = &t->data[index].org_name;
     break;
   case 3:
-    t->data[index].org_address = strdup(field);
+    slot = &t->data[index].org_address;
     break;
   default:
     break;
+  }
+
+  if (slot) {
+    *slot = strdup(field);
+
+    if (*slot == NULL)
+      t->oom = 1;
   }
 
   /* Increase OUI field index for next run */
@@ -327,6 +336,15 @@ int nomadcap_oui_load(nomadcap_oui_table_t *t, const char *path,
 
       return -1;
     }
+  }
+
+  /* A read error would silently truncate the table */
+  if (ferror(fp)) {
+    snprintf(err, err_size, "%s: read error", path);
+    csv_free(&cp);
+    fclose(fp);
+
+    return -1;
   }
 
   /* Flush remaining row, clean up parser resources, close file */
