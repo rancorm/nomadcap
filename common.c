@@ -139,8 +139,9 @@ void nomadcap_iso8601(struct tm *(*ts_func)(const time_t *), char *ts,
     struct tm *timeinfo;
     struct timeval tv;
 
-    /* Get the current time */
-    time(&rawtime);
+    /* Single clock read so the seconds and milliseconds agree */
+    gettimeofday(&tv, NULL);
+    rawtime = tv.tv_sec;
 
     /* Call timestamp function (localtime or gmtime) */
     timeinfo = ts_func(&rawtime);
@@ -149,7 +150,6 @@ void nomadcap_iso8601(struct tm *(*ts_func)(const time_t *), char *ts,
     strftime(ts, ts_size, "%Y-%m-%dT%H:%M:%S.", timeinfo);
 
     /* Append milliseconds */
-    gettimeofday(&tv, NULL);
     snprintf(ts + 20, ts_size - 20, "%03d", (int)(tv.tv_usec / 1000));
 
      /* Append timezone offset */
