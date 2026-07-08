@@ -694,6 +694,7 @@ int main(int argc, char *argv[]) {
       np->flags |= NOMADCAP6_FLAGS_ANNOUNCE;
       break;
     case 'i':
+      free(np->device);
       np->device = strdup(optarg);
       break;
     case 'n': {
@@ -722,6 +723,7 @@ int main(int argc, char *argv[]) {
       }
     case 'f':
       np->flags |= NOMADCAP6_FLAGS_FILE;
+      free(np->filename);
       np->filename = strdup(optarg);
       break;
     case 'd': {
@@ -743,6 +745,7 @@ int main(int argc, char *argv[]) {
       np->flags |= NOMADCAP6_FLAGS_ONE;
       break;
     case 'x':
+      free(np->binary);
       np->binary = strdup(optarg);
       break;
 #ifdef USE_LIBJANSSON

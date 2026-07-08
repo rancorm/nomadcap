@@ -629,6 +629,7 @@ int main(int argc, char *argv[]) {
       np->flags |= NOMADCAP_FLAGS_ANNOUNCE;
       break;
     case 'i': /* Capture interface/device */
+      free(np->device);
       np->device = strdup(optarg);
       break;
     case 'n': /* Capture network */
@@ -645,6 +646,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'f': /* Offline capture file */
       np->flags |= NOMADCAP_FLAGS_FILE;
+      free(np->filename);
       np->filename = strdup(optarg);
       break;
     case 'd': { /* Capture duration */
@@ -666,6 +668,7 @@ int main(int argc, char *argv[]) {
       np->flags |= NOMADCAP_FLAGS_ONE;
       break;
     case 'x': /* Execute */
+      free(np->binary);
       np->binary = strdup(optarg);
       break;
 #ifdef USE_LIBJANSSON

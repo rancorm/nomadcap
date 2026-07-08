@@ -47,7 +47,7 @@ endif
 $(shell rm -f libjansson_test)
 $(shell rm -f libjansson_test.c)
 
-.PHONY: clean deb
+.PHONY: all clean deb install
 
 all: $(BUILD_DIR)$(PROJECT_NAME) $(BUILD_DIR)$(PROJECT_NAME6)
 
@@ -65,13 +65,13 @@ $(BUILD_DIR)$(PROJECT_NAME): $(OBJ)
 $(BUILD_DIR)$(PROJECT_NAME6): $(OBJ6)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
-$(BUILD_DIR)$(PROJECT_NAME)-win32: $(BUILD_DIR)$(OBJ)
+$(BUILD_DIR)$(PROJECT_NAME)-win32: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 $(BUILD_DIR):
 	$(MKDIR) $@
 
-install:
+install: all
 	$(INSTALL) -s -D -m 755 $(BUILD_DIR)$(PROJECT_NAME) $(DESTDIR)/usr/bin/$(PROJECT_NAME)
 	$(INSTALL) -s -D -m 755 $(BUILD_DIR)$(PROJECT_NAME6) $(DESTDIR)/usr/bin/$(PROJECT_NAME6)
 

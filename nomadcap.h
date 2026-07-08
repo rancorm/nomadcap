@@ -74,7 +74,19 @@ V - Version
 j - JSON mode
 t - ISO 8601 timestamps
 */
-#define NOMADCAP_OPTS "LOApai:n:m:f:d:hvV1x:jstu"
+#ifdef USE_LIBCSV
+#define NOMADCAP_OPTS_CSV "O"
+#else
+#define NOMADCAP_OPTS_CSV ""
+#endif /* USE_LIBCSV */
+
+#ifdef USE_LIBJANSSON
+#define NOMADCAP_OPTS_JSON "j"
+#else
+#define NOMADCAP_OPTS_JSON ""
+#endif /* USE_LIBJANSSON */
+
+#define NOMADCAP_OPTS "LApai:n:m:f:d:hvV1x:stu" NOMADCAP_OPTS_CSV NOMADCAP_OPTS_JSON
 
 static const struct option nomadcap_long_opts[] = {
 #ifdef USE_LIBCSV

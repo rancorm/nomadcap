@@ -44,7 +44,7 @@ j - JSON mode
 t - ISO 8601 timestamps
 u - UTC timestamps
 */
-#define NOMADCAP6_OPTS "LOAai:n:f:d:hvV1x:jtsu"
+#define NOMADCAP6_OPTS "LAai:n:f:d:hvV1x:tsu" NOMADCAP_OPTS_CSV NOMADCAP_OPTS_JSON
 
 static const struct option nomadcap6_long_opts[] = {
 #ifdef USE_LIBCSV
