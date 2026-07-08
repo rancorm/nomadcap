@@ -597,7 +597,7 @@ void nomadcap6_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_c
         /* Execute binary on detection */
         if (np->binary) {
           char src_ip[INET6_ADDRSTRLEN], tgt_ip[INET6_ADDRSTRLEN];
-          char src_ha[NOMADCAP6_ETH_ADDRSTRLEN];
+          char src_ha[NOMADCAP6_ETH_ADDRSTRLEN], dst_ha[NOMADCAP6_ETH_ADDRSTRLEN];
           struct nd_neighbor_solicit *ns = (struct nd_neighbor_solicit *)icmp;
 
           inet_ntop(AF_INET6, &ip->ip6_src, src_ip, sizeof(src_ip));
@@ -605,8 +605,22 @@ void nomadcap6_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_c
           snprintf(src_ha, sizeof(src_ha), "%02x:%02x:%02x:%02x:%02x:%02x",
             eth->ether_shost[0], eth->ether_shost[1], eth->ether_shost[2],
             eth->ether_shost[3], eth->ether_shost[4], eth->ether_shost[5]);
+          snprintf(dst_ha, sizeof(dst_ha), "%02x:%02x:%02x:%02x:%02x:%02x",
+            eth->ether_dhost[0], eth->ether_dhost[1], eth->ether_dhost[2],
+            eth->ether_dhost[3], eth->ether_dhost[4], eth->ether_dhost[5]);
 
-          char *args[] = {np->binary, src_ha, src_ip, tgt_ip, NULL};
+          /* Build arguments for binary, same contract as nomadcap */
+          /* [nomadcap6, <sha>, <spa>, <tha>, <tpa>, <dev>] */
+          char *args[] = {
+            np->binary,
+            src_ha,
+            src_ip,
+            dst_ha,
+            tgt_ip,
+            np->device,
+            NULL
+          };
+
           NOMADCAP6_STDOUT_V(np, "Executing '%s'...\n", args[0]);
           NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Executing '%s'...\n", args[0]);
 
