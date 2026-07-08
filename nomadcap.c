@@ -699,10 +699,11 @@ int main(int argc, char *argv[]) {
       while ((token = strtok(s, ",")) != NULL) {
 	  s = NULL;
 
-	  unsigned long v = strtoul(token, NULL, 0);
-	  
-	  if (v > 4095) {
-            NOMADCAP_WARNING(np, "VLAN %s out of range\n", token);
+	  char *end;
+	  unsigned long v = strtoul(token, &end, 0);
+
+	  if (*token == '\0' || *end != '\0' || v > 4095) {
+            NOMADCAP_WARNING(np, "Invalid VLAN: %s\n", token);
             continue;
 	  }
         
