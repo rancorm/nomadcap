@@ -215,6 +215,15 @@ void nomadcap6_setup(nomadcap6_pack_t *np, char *errbuf) {
   if (NOMADCAP6_FLAG_NOT(np, NETWORK) && NOMADCAP6_FLAG_NOT(np, FILE))
     nomadcap6_get_prefix(np);
 
+  /* Without a prefix every ND message would be flagged as foreign */
+  if (NOMADCAP6_FLAG_NOT(np, NETWORK) && NOMADCAP6_FLAG_NOT(np, FILE) &&
+    NOMADCAP6_FLAG_NOT(np, ALLNET)) {
+      NOMADCAP6_SYSLOG(np, LOG_ERR, "No IPv6 prefix found on interface: %s\n",
+                       np->device);
+      NOMADCAP6_FAILURE(np, "No IPv6 prefix found on interface: %s"
+                        " (use -n PREFIX/LEN or -A)\n", np->device);
+  }
+
   NOMADCAP6_STDOUT_V(np, "Flags: 0x%08x\n", np->flags);
   NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Flags: 0x%08x\n", np->flags);
 
