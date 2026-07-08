@@ -22,10 +22,17 @@
 /* Global termination control, set from signal handlers */
 volatile sig_atomic_t nomadcap_loop = 1;
 
+/* libpcap polls with no timeout; pcap_breakloop() wakes it via an eventfd
+   and is safe from a signal handler */
+pcap_t *volatile nomadcap_pcap = NULL;
+
 void nomadcap_cleanup(int signo) {
   ssize_t w;
 
   nomadcap_loop = 0;
+
+  if (nomadcap_pcap)
+    pcap_breakloop(nomadcap_pcap);
 
   /* write() is async-signal-safe, fprintf() is not */
   w = write(STDERR_FILENO, "Interrupt signal\n", 17);
@@ -35,6 +42,9 @@ void nomadcap_cleanup(int signo) {
 
 void nomadcap_alarm(int signo) {
   nomadcap_loop = 0;
+
+  if (nomadcap_pcap)
+    pcap_breakloop(nomadcap_pcap);
 
   (void)signo;
 }

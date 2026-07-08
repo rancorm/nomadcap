@@ -65,6 +65,8 @@ void nomadcap6_exit(nomadcap6_pack_t *np, int code) {
     /* Free BPF program and close capture device */
     pcap_freecode(&np->code);
 
+    nomadcap_pcap = NULL;
+
     if (np->p)
       pcap_close(np->p);
 
@@ -258,6 +260,10 @@ void nomadcap6_setup(nomadcap6_pack_t *np, char *errbuf) {
 #endif /* USE_LIBCSV */
 
   nomadcap6_pcap_setup(np, errbuf);
+
+  /* Let signal handlers break a blocked capture */
+  nomadcap_pcap = np->p;
+
   nomadcap6_signals(np);
 }
 
@@ -608,8 +614,10 @@ void nomadcap6_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_c
         }
 
         /* Terminate loop if only looking for one match */
-        if (NOMADCAP6_FLAG(np, ONE))
+        if (NOMADCAP6_FLAG(np, ONE)) {
+          nomadcap_loop = 0;
           pcap_breakloop(np->p);
+        }
       } else {
         NOMADCAP6_STDOUT_V(np, "Local traffic, ignoring...\n");
         NOMADCAP6_SYSLOG_V(np, LOG_INFO, "Local traffic, ignoring...\n");
@@ -802,8 +810,25 @@ int main(int argc, char *argv[]) {
     NOMADCAP6_JSON_PACK(np, "started_at", json_string(ts));
 #endif /* USE_LIBJANSSON */
 
-  pcap_loop(np->p, 0, nomadcap6_pcap_handler,
-      (u_char *)np);
+  /* Where the magic happens; pcap_dispatch() returns on timeout expiry,
+     so signal handlers can end the loop on idle networks */
+  while (nomadcap_loop) {
+    int rc = pcap_dispatch(np->p, -1, nomadcap6_pcap_handler, (u_char *)np);
+
+    if (rc == PCAP_ERROR_BREAK)
+      break;
+
+    if (rc == PCAP_ERROR) {
+      NOMADCAP6_STDERR(np, "pcap_dispatch: %s\n", pcap_geterr(np->p));
+      NOMADCAP6_SYSLOG(np, LOG_ERR, "pcap_dispatch: %s\n", pcap_geterr(np->p));
+
+      break;
+    }
+
+    /* End of savefile */
+    if (rc == 0 && NOMADCAP6_FLAG(np, FILE))
+      break;
+  }
 
   if (NOMADCAP6_FLAG(np, VERBOSE) && NOMADCAP6_FLAG_NOT(np, FILE)) {
     if (pcap_stats(np->p, &ps) == -1) {

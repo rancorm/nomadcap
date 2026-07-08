@@ -34,6 +34,8 @@ void nomadcap_exit(nomadcap_pack_t *np, int code) {
     /* Free BPF program and close capture device */
     pcap_freecode(&np->code);
 
+    nomadcap_pcap = NULL;
+
     if (np->p)
       pcap_close(np->p);
 
@@ -142,6 +144,9 @@ void nomadcap_setup(nomadcap_pack_t *np, char *errbuf) {
   /* Open device/file, set filter, check datalink, and
      lookup network and mask */
   nomadcap_pcap_setup(np, errbuf);
+
+  /* Let signal handlers break a blocked capture */
+  nomadcap_pcap = np->p;
 
   /* Setup signal handlers */
   nomadcap_signals(np);
@@ -565,8 +570,10 @@ void nomadcap_pcap_handler(u_char *user, const struct pcap_pkthdr *h, const u_ch
       }
 
       /* Terminate loop if only looking for one match */
-      if (NOMADCAP_FLAG(np, ONE))
+      if (NOMADCAP_FLAG(np, ONE)) {
+	nomadcap_loop = 0;
 	pcap_breakloop(np->p);
+      }
     } else {
       NOMADCAP_STDOUT_V(np, "Local traffic, ignoring...\n");
       NOMADCAP_SYSLOG_V(np, LOG_INFO, "Local traffic, ignoring...\n");
@@ -756,9 +763,25 @@ int main(int argc, char *argv[]) {
     NOMADCAP_JSON_PACK(np, "started_at", json_string(ts));
 #endif /* USE_LIBJANSSON */
 
-  /* Where the magic happens */
-  pcap_loop(np->p, 0, nomadcap_pcap_handler,
-      (u_char *)np);
+  /* Where the magic happens; pcap_dispatch() returns on timeout expiry,
+     so signal handlers can end the loop on idle networks */
+  while (nomadcap_loop) {
+    int rc = pcap_dispatch(np->p, -1, nomadcap_pcap_handler, (u_char *)np);
+
+    if (rc == PCAP_ERROR_BREAK)
+      break;
+
+    if (rc == PCAP_ERROR) {
+      NOMADCAP_STDERR(np, "pcap_dispatch: %s\n", pcap_geterr(np->p));
+      NOMADCAP_SYSLOG(np, LOG_ERR, "pcap_dispatch: %s\n", pcap_geterr(np->p));
+
+      break;
+    }
+
+    /* End of savefile */
+    if (rc == 0 && NOMADCAP_FLAG(np, FILE))
+      break;
+  }
 
   /* Who doesn't love statistics (verbose only) */
   if (NOMADCAP_FLAG(np, VERBOSE) && NOMADCAP_FLAG_NOT(np, FILE)) {

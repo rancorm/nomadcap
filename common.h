@@ -9,6 +9,8 @@
 
 #include <net/ethernet.h>
 
+#include <pcap.h>
+
 /* 802.1Q tag length */
 #define NOMADCAP_VLAN_HDRLEN 4
 
@@ -56,6 +58,9 @@ void nomadcap_oui_free(nomadcap_oui_table_t *);
 
 /* Termination control, set from signal handlers */
 extern volatile sig_atomic_t nomadcap_loop;
+
+/* Capture handle the signal handlers break out of a blocked poll */
+extern pcap_t *volatile nomadcap_pcap;
 
 void nomadcap_cleanup(int);
 void nomadcap_alarm(int);
