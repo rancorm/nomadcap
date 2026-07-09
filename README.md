@@ -46,8 +46,8 @@ If you are compiling from source you will need the following packages.
 Download the [latest release](https://github.com/jcormir/nomadcap/releases/latest) Debian package (.deb) and
 install using `dpkg` or your favourite [APT](https://en.wikipedia.org/wiki/APT_(software)) front-end.
 
-VER="0.5-1"
 ```sh
+VER="0.5-1"
 sudo dpkg -i nomadcap_${VER}_amd64.deb
 ```
 
