@@ -46,8 +46,8 @@ If you are compiling from source you will need the following packages.
 Download the [latest release](https://github.com/jcormir/nomadcap/releases/latest) Debian package (.deb) and
 install using `dpkg` or your favourite [APT](https://en.wikipedia.org/wiki/APT_(software)) front-end.
 
-```zsh
 VER="0.5-1"
+```sh
 sudo dpkg -i nomadcap_${VER}_amd64.deb
 ```
 
@@ -55,26 +55,26 @@ sudo dpkg -i nomadcap_${VER}_amd64.deb
 
 Install required build tools, libraries, and headers.
 
-```zsh
+```sh
 sudo apt update
 sudo apt install build-essential libpcap0.8 libpcap-dev
 ```
 
 *Optional*. Compile with IEEE OUI support. Install libcsv for parsing.
 
-```zsh
+```sh
 sudo apt install libcsv3 libcsv-dev ieee-data
 ```
 
 *Optional*. Compile with JSON support. Install libjansson for JSON output.
 
-```zsh
+```sh
 sudo apt install libjansson4 libjansson-dev
 ```
 
 Clone this repository and run `make`. Results are in the directory `build/`.
 
-```zsh
+```sh
 git clone https://github.com/rancorm/nomadcap.git
 cd nomadcap
 make
@@ -89,7 +89,7 @@ General tool and command line switch usage.
 
 Run `nomadcap -h` to show help.
 
-```zsh
+```sh
 nomadcap -h
 ```
 
@@ -131,7 +131,7 @@ Run `nomadcap` under sudo, root, or group with permission to perform live captur
 
 #### Example 1
 
-```zsh
+```sh
 sudo nomadcap -v
 ```
 
@@ -164,7 +164,7 @@ Done
 
 #### Example 2
 
-```zsh
+```sh
 sudo nomadcap -Ov -1 -d 0
 ```
 
@@ -196,7 +196,7 @@ Done
 
 #### Example 3
 
-```zsh
+```sh
 nomadcap -Ov -f nomad.pcapng
 ```
 
@@ -238,14 +238,14 @@ Done
 ```
 #### Example 4
 
-```zsh
+```sh
 sudo nomadcap -Ov -j -1 -t
 ```
 
 Capture single match (-1) with organization details (-O), verbose mode (-v), JSON mode (-j), and
 with timestamps (-t). JSON mode prints a JSON object with capture details and results.
 
-```text
+```json
 {
   "found_intf": "wlo1",
   "flags": 1601,
@@ -270,12 +270,12 @@ with timestamps (-t). JSON mode prints a JSON object with capture details and re
     "pkts_drop": 0
   },
   "version": "0.5"
-}%
+}
 ```
 
 #### Example 5
 
-```zsh
+```sh
 sudo nomadcap -i en0 -d 0 -v -x scripts/echo.sh
 ```
 
@@ -283,7 +283,7 @@ Capture forever (-d 0) in verbose mode (-v) on interface `en0` (-i). When there 
 detection, run the script or program passed to the argument `-x`, in our example
 `echo.sh` which just prints to stdout.
 
-```zsh
+```text
 Flags: 0x00000001
 Binary: scripts/echo.sh
 Listening on: en0
@@ -315,7 +315,7 @@ to identify hosts soliciting addresses outside the local network prefix.
 
 Run `nomadcap6 -h` to show help.
 
-```zsh
+```sh
 nomadcap6 -h
 ```
 
@@ -351,7 +351,7 @@ Author: Jonathan Cormier <jonathan@cormier.co>
 
 ### Example
 
-```zsh
+```sh
 sudo nomadcap6 -Ov -1 -d 0
 ```
 
